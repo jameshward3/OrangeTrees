@@ -21,6 +21,23 @@
       const result = await request("/v1/trees?includeArchived=true");
       return result.trees || [];
     },
+    async loadFindings({ treeId = "", verificationStatus = "" } = {}) {
+      const query = new URLSearchParams();
+      if (treeId) query.set("treeId", treeId);
+      if (verificationStatus) query.set("verificationStatus", verificationStatus);
+      const result = await request(`/v1/findings${query.size ? `?${query}` : ""}`);
+      return result.findings || [];
+    },
+    async loadVerifiedFindings() {
+      return this.loadFindings({ verificationStatus: "verified" });
+    },
+    async verifyFinding(id, status = "verified", reviewer = "orangetrees") {
+      const result = await request(`/v1/findings/${encodeURIComponent(id)}/verification`, {
+        method: "PATCH",
+        body: JSON.stringify({ status, reviewer })
+      });
+      return result.finding;
+    },
     async saveTree(tree) {
       const result = await request(`/v1/trees/${encodeURIComponent(tree.id)}`, {
         method: "PUT",

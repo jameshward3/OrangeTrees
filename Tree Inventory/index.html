@@ -1623,9 +1623,38 @@ document.querySelectorAll(".tab").forEach(tb=>tb.onclick=()=>{
 });
 
 /* ---- 20. Boot ---- */
+function consumeVerifiedCanopyQuestFindings(findings){
+  let applied=0;
+  for(const finding of findings){
+    if(finding.source!=="canopyquest" || !finding.treeId) continue;
+    const tree=[...TREES,...ARCHIVE].find(candidate=>candidate.id===finding.treeId);
+    if(!tree) continue;
+    if(finding.confirmedSpecies) tree.species=finding.confirmedSpecies;
+    if(Number.isFinite(Number(finding.speciesConfidence))) tree.speciesConf=Math.round(Number(finding.speciesConfidence)*100);
+    if(Number.isFinite(Number(finding.estimatedHeight))) tree.height=Number(finding.estimatedHeight);
+    if(Number.isFinite(Number(finding.estimatedCanopyDiameter))) tree.canopy=Number(finding.estimatedCanopyDiameter);
+    if(Number.isFinite(Number(finding.estimatedCanopyArea))) tree.canopyArea=Number(finding.estimatedCanopyArea);
+    if(Number.isFinite(Number(finding.estimatedDbh))) tree.dbh=Number(finding.estimatedDbh);
+    if(finding.estimatedCondition) tree.condition=finding.estimatedCondition;
+    tree.status="Verified";
+    tree.updated=String(finding.updatedAt||finding.createdAt||today()).slice(0,10);
+    tree.history=Array.isArray(tree.history)?tree.history:[];
+    if(!tree.history.some(line=>String(line).includes(finding.id))){
+      tree.history.unshift(`${tree.updated} · Verified CanopyQuest finding ${finding.id}`);
+    }
+    applied++;
+  }
+  return applied;
+}
 async function boot(){
   try{
-    const records=await window.orangeTreeDatabase.loadTrees();
+    const [records,verifiedFindings]=await Promise.all([
+      window.orangeTreeDatabase.loadTrees(),
+      window.orangeTreeDatabase.loadVerifiedFindings().catch(error=>{
+        console.warn("Verified CanopyQuest findings unavailable",error);
+        return [];
+      })
+    ]);
     if(records.length){
       TREES=records.filter(t=>!t.archived && t.status!=="Removed");
       ARCHIVE.push(...records.filter(t=>t.archived || t.status==="Removed"));
@@ -1633,9 +1662,10 @@ async function boot(){
         const match=String(t.id||"").match(/^ORG-([A-Z0-9]+)-(\d+)$/);
         if(match) idCounters[match[1]]=Math.max(idCounters[match[1]]||0,Number(match[2]));
       }
+      const verifiedApplied=consumeVerifiedCanopyQuestFindings(verifiedFindings);
       const rb=$("#sampleribbon");
-      if(rb) rb.innerHTML=`<b>SHARED DATABASE</b> — ${TREES.length.toLocaleString()} active trees loaded from OrangeTreeDatabase.`;
-      toast(`Loaded ${TREES.length.toLocaleString()} trees from the shared database`);
+      if(rb) rb.innerHTML=`<b>SHARED DATABASE</b> — ${TREES.length.toLocaleString()} active trees and ${verifiedApplied.toLocaleString()} verified CanopyQuest updates loaded from OrangeTreeDatabase.`;
+      toast(`Loaded ${TREES.length.toLocaleString()} trees and ${verifiedApplied} verified field updates`);
     }else{
       seedInventory();
       toast("Shared database is empty — showing sample trees");
