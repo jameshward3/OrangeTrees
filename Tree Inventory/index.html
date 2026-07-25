@@ -1,0 +1,1619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Orange Tree Inventory — City of Orange Township</title>
+<meta name="description" content="Living municipal urban-forestry GIS for the City of Orange Township, NJ — canopy detection from satellite imagery, ward and street analytics, editable records, and exports for planning and grants.">
+<meta name="theme-color" content="#1f5136">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Orange Tree Inventory — City of Orange Township">
+<meta property="og:description" content="Living municipal urban-forestry GIS for the City of Orange Township, NJ.">
+<meta property="og:url" content="https://jameshward3.github.io/OrangeTreeInventory/">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Cpath%20fill='%231f5136'%20d='M12%202c-3.2%203-5%205.6-5%208.2A5%205%200%200%200%2011%2015v5a1%201%200%200%200%202%200v-5a5%205%200%200%200%204-4.8C17%207.6%2015.2%205%2012%202z'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<style>
+  :root{
+    --bark:#2b2016;        /* deep bark brown, text */
+    --canopy:#1f5136;      /* forest green, brand */
+    --canopy-2:#2f7d54;    /* mid green */
+    --leaf:#6aa84f;        /* leaf */
+    --amber:#c8811f;       /* attention / priority */
+    --clay:#a2492f;        /* removed / critical */
+    --paper:#f6f4ee;       /* panel bg */
+    --paper-2:#ece7db;     /* panel bg 2 */
+    --line:#d8d1c1;        /* hairline */
+    --ink-soft:#6d6350;
+    --white:#ffffff;
+    --shadow:0 6px 24px rgba(30,25,15,.16);
+    --mono:"SF Mono",ui-monospace,"Roboto Mono",Menlo,Consolas,monospace;
+    --sans:"Inter","Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;
+    --display:"Space Grotesk","Inter",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:var(--sans);color:var(--bark);background:#0d0d0d}
+  #map{position:absolute;inset:0}
+  .leaflet-container{background:#111}
+
+  /* ---------- Top bar ---------- */
+  #topbar{
+    position:absolute;top:0;left:0;right:0;height:56px;z-index:1200;
+    display:flex;align-items:center;gap:14px;padding:0 14px;
+    background:linear-gradient(180deg,rgba(31,81,54,.98),rgba(28,72,48,.96));
+    color:#f2efe6;box-shadow:0 2px 10px rgba(0,0,0,.35);backdrop-filter:blur(4px)
+  }
+  .brand{display:flex;align-items:center;gap:10px;min-width:0}
+  .brand .mark{width:26px;height:26px;flex:0 0 auto}
+  .brand h1{font-size:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:0;white-space:nowrap}
+  .brand .sub{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#bcd8c6;margin-top:1px}
+  #search{margin-left:auto;position:relative}
+  #search input{
+    width:230px;max-width:44vw;padding:8px 12px 8px 32px;border-radius:8px;border:1px solid rgba(255,255,255,.18);
+    background:rgba(0,0,0,.22);color:#f2efe6;font-size:13px;outline:none
+  }
+  #search input::placeholder{color:#a9c3b3}
+  #search .ico{position:absolute;left:10px;top:50%;transform:translateY(-50%);opacity:.7;font-size:13px}
+  .topbtn{
+    display:inline-flex;align-items:center;gap:6px;padding:8px 11px;border-radius:8px;cursor:pointer;
+    border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#f2efe6;font-size:12.5px;font-weight:600;white-space:nowrap
+  }
+  .topbtn:hover{background:rgba(255,255,255,.14)}
+  .topbtn.warn{background:rgba(200,129,31,.9);border-color:transparent}
+
+  /* ---------- Left rail ---------- */
+  #rail{
+    position:absolute;top:66px;left:12px;bottom:12px;width:320px;max-width:86vw;z-index:1100;
+    display:flex;flex-direction:column;gap:10px;overflow:hidden
+  }
+  .panel{background:var(--paper);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+  .panel h2{
+    margin:0;padding:11px 13px;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--canopy);background:var(--paper-2);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between
+  }
+  .panel .body{padding:11px 13px}
+  .tabs{display:flex;background:var(--paper-2);border-bottom:1px solid var(--line)}
+  .tab{flex:1;padding:10px 6px;font-size:11px;font-weight:700;letter-spacing:.04em;text-align:center;cursor:pointer;color:var(--ink-soft);text-transform:uppercase}
+  .tab.active{color:var(--canopy);box-shadow:inset 0 -2px 0 var(--canopy);background:var(--paper)}
+  .scroll{overflow-y:auto;overflow-x:hidden}
+  #railScroll{flex:1;display:flex;flex-direction:column;gap:10px;overflow-y:auto;padding-right:2px}
+  #railScroll::-webkit-scrollbar{width:8px}
+  #railScroll::-webkit-scrollbar-thumb{background:#cfc7b5;border-radius:8px}
+
+  .row{display:flex;align-items:center;gap:8px;margin:7px 0;font-size:12.5px}
+  .row label{flex:1;color:var(--bark)}
+  select,input[type=text],input[type=number],textarea{
+    font-family:var(--sans);font-size:12.5px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--bark);width:100%
+  }
+  .seg{display:flex;flex-wrap:wrap;gap:5px}
+  .chip{
+    font-size:11px;padding:5px 9px;border:1px solid var(--line);border-radius:999px;background:#fff;cursor:pointer;color:var(--ink-soft);font-weight:600
+  }
+  .chip.on{background:var(--canopy);color:#fff;border-color:var(--canopy)}
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 10px}
+  .kpi .n{font-size:20px;font-weight:800;color:var(--canopy);line-height:1;font-variant-numeric:tabular-nums}
+  .kpi .l{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin-top:4px}
+  .bar{height:9px;border-radius:5px;background:var(--paper-2);overflow:hidden;margin-top:3px}
+  .bar > span{display:block;height:100%;background:var(--canopy-2)}
+  .distrow{display:flex;align-items:center;gap:8px;font-size:11.5px;margin:5px 0}
+  .distrow .nm{width:96px;flex:0 0 auto;color:var(--bark);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .distrow .bwrap{flex:1}
+  .distrow .v{width:34px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink-soft)}
+  .legend{display:flex;flex-direction:column;gap:5px;font-size:11px}
+  .legend .li{display:flex;align-items:center;gap:8px}
+  .sw{width:14px;height:14px;border-radius:4px;flex:0 0 auto;border:1px solid rgba(0,0,0,.15)}
+  .note{font-size:10.5px;color:var(--ink-soft);line-height:1.45}
+  .switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;font-weight:600}
+  .switch input{display:none}
+  .track{width:34px;height:18px;border-radius:999px;background:#c9c1af;position:relative;transition:.15s}
+  .track::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:.15s}
+  .switch input:checked + .track{background:var(--canopy-2)}
+  .switch input:checked + .track::after{transform:translateX(16px)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 11px;border-radius:8px;border:1px solid var(--canopy);background:var(--canopy);color:#fff;font-weight:700;font-size:12px;cursor:pointer;width:100%}
+  .btn.ghost{background:#fff;color:var(--canopy)}
+  .btn.warnb{background:var(--amber);border-color:var(--amber)}
+  .btn.danger{background:var(--clay);border-color:var(--clay)}
+  .btn:hover{filter:brightness(1.05)}
+  .btngrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+
+  /* ---------- Detail / edit drawer ---------- */
+  #drawer{
+    position:absolute;top:66px;right:12px;bottom:12px;width:340px;max-width:88vw;z-index:1150;
+    transform:translateX(calc(100% + 20px));transition:transform .22s cubic-bezier(.2,.7,.2,1)
+  }
+  #drawer.open{transform:none}
+  #drawer .panel{height:100%;display:flex;flex-direction:column}
+  #drawer .body{overflow-y:auto;flex:1}
+  .idtag{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--canopy);letter-spacing:.02em}
+  .close{cursor:pointer;font-size:16px;color:var(--ink-soft);border:none;background:none}
+  .field{margin:9px 0}
+  .field .flabel{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:3px}
+  .statuspill{display:inline-block;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.03em}
+  .meas{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .meas .m{background:var(--paper-2);border-radius:8px;padding:7px 9px}
+  .meas .m .mv{font-size:15px;font-weight:800;color:var(--bark);font-variant-numeric:tabular-nums}
+  .meas .m .ml{font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft)}
+  .conf{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-soft)}
+  .confbar{width:60px;height:6px;border-radius:4px;background:var(--paper-2);overflow:hidden}
+  .confbar > span{display:block;height:100%}
+  .hist{font-size:10.5px;color:var(--ink-soft);border-left:2px solid var(--line);padding-left:8px;margin:4px 0}
+
+  /* ---------- Map chrome ---------- */
+  .leaflet-control-zoom{margin-top:70px!important}
+  #modehint{
+    position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:1090;
+    background:var(--amber);color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:999px;box-shadow:var(--shadow);display:none
+  }
+  #sampleribbon{
+    position:absolute;right:12px;bottom:12px;z-index:1080;background:rgba(43,32,22,.92);color:#f0e9db;
+    font-size:10.5px;letter-spacing:.05em;padding:6px 11px;border-radius:8px;max-width:300px;line-height:1.4
+  }
+  #sampleribbon b{color:#f4c778}
+  #sampleribbon a{color:#9fd6b4}
+
+  /* ---------- Modal ---------- */
+  #modalwrap{position:absolute;inset:0;z-index:2000;display:none;align-items:center;justify-content:center;background:rgba(15,12,6,.55)}
+  #modalwrap.open{display:flex}
+  .modal{background:var(--paper);border-radius:14px;max-width:620px;width:92vw;max-height:86vh;overflow:auto;box-shadow:var(--shadow)}
+  .modal .mh{padding:16px 20px;background:var(--canopy);color:#fff;border-radius:14px 14px 0 0}
+  .modal .mh h3{margin:0;font-size:15px;letter-spacing:.02em}
+  .modal .mc{padding:18px 20px;font-size:13px;line-height:1.6;color:var(--bark)}
+  .modal .mc h4{margin:16px 0 5px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--canopy)}
+  .modal .mc code{font-family:var(--mono);background:var(--paper-2);padding:1px 5px;border-radius:5px;font-size:12px}
+  .modal .mc a{color:var(--canopy-2);font-weight:600}
+  .modal .mc ul{margin:6px 0;padding-left:18px}
+  .modal .mc li{margin:3px 0}
+  .pipe{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .pipe .st{flex:1;min-width:120px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px}
+  .pipe .st .sn{font-size:9px;font-family:var(--mono);color:var(--amber);font-weight:700}
+  .pipe .st .st{font-size:12.5px;font-weight:700;margin:2px 0 3px}
+  .pipe .st .sd{font-size:11px;color:var(--ink-soft);line-height:1.4}
+
+  .toast{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:2100;background:var(--bark);color:#fff;padding:9px 16px;border-radius:999px;font-size:12.5px;opacity:0;transition:.2s;pointer-events:none}
+  .toast.show{opacity:1}
+
+  @media (max-width:720px){
+    #rail{width:calc(100vw - 24px);bottom:auto;max-height:52vh}
+    #drawer{width:calc(100vw - 24px)}
+    .brand .sub{display:none}
+    #search input{width:150px}
+  }
+  /* ---------- Inventory accordion ---------- */
+  .grp-toggle{display:flex;gap:6px;margin-bottom:9px}
+  .grp-toggle .gt{flex:1;text-align:center;padding:7px;border:1px solid var(--line);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;color:var(--ink-soft);background:#fff}
+  .grp-toggle .gt.on{background:var(--canopy);color:#fff;border-color:var(--canopy)}
+  .acc{border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:6px;background:#fff}
+  .acc .acc{border:none;border-radius:0;margin:0}
+  .acch{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;font-size:12px;font-weight:700;color:var(--bark);background:var(--paper-2);user-select:none}
+  .acch:hover{background:#e4dece}
+  .acch.subh{background:#fff;border-top:1px solid var(--paper-2);font-weight:600;padding-left:18px}
+  .acch .cnt{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--ink-soft);font-weight:600;font-size:11px}
+  .acch .zoom{border:none;background:none;cursor:pointer;color:var(--canopy);font-size:14px;line-height:1;padding:0 2px}
+  .acch .zoom:hover{color:var(--amber)}
+  .acch .dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+  .acch .tw{transition:transform .15s;color:var(--ink-soft);font-size:9px}
+  .acch.open .tw{transform:rotate(90deg)}
+  .accc{display:none}
+  .accc.open{display:block}
+  .trow{display:flex;align-items:center;gap:8px;padding:6px 10px 6px 24px;font-size:11.5px;cursor:pointer;border-top:1px solid var(--paper-2)}
+  .trow:hover{background:var(--paper-2)}
+  .trow .tid{font-family:var(--mono);color:var(--canopy);font-size:10.5px;flex:0 0 auto}
+  .trow .tsp{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-soft)}
+  .trow .tst{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+  /* ---------- Detection progress ---------- */
+  #progress{position:absolute;left:50%;top:66px;transform:translateX(-50%);z-index:1600;display:none;
+    background:var(--bark);color:#f2efe6;border-radius:10px;box-shadow:var(--shadow);padding:10px 14px;width:min(380px,90vw)}
+  #progress .pgh{display:flex;align-items:center;gap:8px;font-size:12px}
+  #progress .pgh b{color:#8fd6a6}
+  #progress .pgh span{color:#b7ae9b;font-variant-numeric:tabular-nums}
+  #progress .pgh #pgCancel{margin-left:auto;background:rgba(255,255,255,.12);border:none;color:#f2efe6;
+    font-size:11px;font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer}
+  #progress .pgbar{height:7px;border-radius:5px;background:rgba(255,255,255,.14);overflow:hidden;margin-top:8px}
+  #progress .pgbar > span{display:block;height:100%;background:linear-gradient(90deg,#6aa84f,#8fd6a6);transition:width .2s}
+  .brand h1{font-family:var(--display);font-weight:700}
+  .panel h2{font-family:var(--display)}
+  .modal .mh h3{font-family:var(--display)}
+  .kpi .n{font-family:var(--display)}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 24 24" fill="none"><path d="M12 2c-3.2 3-5 5.6-5 8.2A5 5 0 0 0 11 15v5a1 1 0 0 0 2 0v-5a5 5 0 0 0 4-4.8C17 7.6 15.2 5 12 2z" fill="#8fd6a6"/></svg>
+    <div>
+      <h1>Orange Tree Inventory</h1>
+      <div class="sub">City of Orange Township · 07050</div>
+    </div>
+  </div>
+  <div id="search"><span class="ico">⌕</span><input id="searchInput" placeholder="Search ID, street, species…" autocomplete="off"/></div>
+  <div class="topbtn" id="btnDetect" style="background:rgba(143,214,166,.16);border-color:rgba(143,214,166,.5)">◎ Detect from imagery</div>
+  <div class="topbtn" id="btnAdd">＋ Add tree</div>
+  <div class="topbtn" id="btnExport">⤓ Export</div>
+  <div class="topbtn warn" id="btnAbout">How detection works</div>
+</div>
+
+<div id="modehint">Add mode — click a location inside Orange to place a tree. Press Esc to exit.</div>
+
+<!-- LEFT RAIL -->
+<div id="rail">
+  <div class="panel" style="flex:0 0 auto">
+    <div class="tabs">
+      <div class="tab active" data-tab="dash">Dashboard</div>
+      <div class="tab" data-tab="filter">Filters</div>
+      <div class="tab" data-tab="layers">Layers</div>
+    </div>
+  </div>
+  <div id="railScroll" class="scroll"></div>
+</div>
+
+<!-- DETAIL DRAWER -->
+<div id="drawer">
+  <div class="panel">
+    <h2><span id="drawerTitle" class="idtag">Tree</span><button class="close" id="drawerClose">✕</button></h2>
+    <div class="body" id="drawerBody"></div>
+  </div>
+</div>
+
+<!-- ABOUT MODAL -->
+<div id="modalwrap">
+  <div class="modal">
+    <div class="mh"><h3>How the tree inventory is actually built</h3></div>
+    <div class="mc" id="modalBody"></div>
+  </div>
+</div>
+
+<div id="sampleribbon">
+  <b>SAMPLE DATA</b> — points shown are seeded demo records, not real detections.
+  Real trees come from the detection pipeline (<a href="#" id="ribbonAbout">see how</a>).
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+/* =========================================================================
+   ORANGE TREE INVENTORY — front-end reference build
+   Matches the methodology of the Orange Street Paving Program app:
+   embedded offline boundary + grey mask, Esri basemaps, editable feature
+   layer, import/export, print. Seeded with clearly-labelled SAMPLE data.
+   Swap BOUNDARY[] with the authoritative embedded boundary from the paving
+   app, and replace generated trees with real detector output (see modal).
+   ========================================================================= */
+
+/* ---- 1. Municipal boundary (PLACEHOLDER — replace with authoritative geometry) ---- */
+const CITY_CENTER = [40.76730, -74.23905];
+// Authoritative City of Orange Township boundary (Census/Esri-derived, 153 vertices),
+// taken directly from the Street Paving Program app so both share one border.
+const BOUNDARY = [
+  [40.75713,-74.25271],[40.75751,-74.25386],[40.75811,-74.25527],[40.75842,-74.25509],[40.75845,-74.2551],[40.75864,-74.25498],
+  [40.75875,-74.25498],[40.75877,-74.25495],[40.75883,-74.25491],[40.75913,-74.25468],[40.75918,-74.25463],[40.75928,-74.25458],
+  [40.75943,-74.25459],[40.75956,-74.25453],[40.75962,-74.25451],[40.75978,-74.25437],[40.75979,-74.25433],[40.75982,-74.2543],
+  [40.76017,-74.2539],[40.76039,-74.25351],[40.76049,-74.25342],[40.76051,-74.25338],[40.76062,-74.25329],[40.76104,-74.25297],
+  [40.76126,-74.25274],[40.76131,-74.25268],[40.76164,-74.25251],[40.76182,-74.25242],[40.76203,-74.25225],[40.76245,-74.25196],
+  [40.76256,-74.25196],[40.76269,-74.25196],[40.76288,-74.25195],[40.76313,-74.25192],[40.76331,-74.2518],[40.76347,-74.25171],
+  [40.76373,-74.25165],[40.76416,-74.25154],[40.76452,-74.2514],[40.76494,-74.25114],[40.76526,-74.25101],[40.76529,-74.251],
+  [40.76589,-74.25042],[40.76609,-74.25023],[40.76644,-74.25004],[40.76647,-74.25004],[40.76671,-74.2498],[40.76686,-74.24972],
+  [40.76682,-74.24963],[40.76806,-74.24851],[40.76799,-74.24829],[40.76766,-74.24733],[40.76722,-74.24618],[40.76722,-74.24616],
+  [40.76692,-74.24568],[40.76683,-74.24553],[40.76823,-74.24404],[40.76863,-74.24407],[40.76948,-74.24313],[40.76956,-74.24305],
+  [40.77022,-74.24204],[40.77046,-74.24254],[40.77105,-74.24167],[40.77109,-74.24161],[40.77166,-74.24133],[40.77162,-74.24123],
+  [40.77224,-74.24074],[40.77284,-74.24028],[40.77414,-74.23932],[40.77628,-74.23858],[40.77706,-74.23821],[40.77851,-74.23699],
+  [40.77963,-74.23503],[40.78005,-74.23441],[40.78195,-74.23084],[40.78214,-74.23066],[40.78233,-74.23049],[40.78296,-74.22966],
+  [40.78466,-74.22673],[40.78629,-74.22493],[40.78759,-74.22349],[40.7898,-74.22089],[40.78852,-74.21892],[40.78832,-74.21873],
+  [40.78812,-74.21853],[40.7881,-74.21851],[40.78807,-74.21849],[40.78788,-74.21884],[40.78752,-74.21903],[40.787,-74.21907],
+  [40.7867,-74.21898],[40.78668,-74.21891],[40.78561,-74.21932],[40.78457,-74.21999],[40.78236,-74.22059],[40.78105,-74.221],
+  [40.7807,-74.22114],[40.78066,-74.22116],[40.78049,-74.22133],[40.78007,-74.22145],[40.77809,-74.22245],[40.77688,-74.22282],
+  [40.776,-74.22325],[40.77525,-74.2235],[40.77411,-74.22356],[40.77381,-74.22327],[40.77375,-74.22321],[40.77188,-74.22146],
+  [40.77156,-74.22115],[40.77146,-74.22103],[40.77041,-74.21979],[40.76978,-74.2202],[40.76911,-74.22038],[40.76802,-74.22097],
+  [40.767,-74.22207],[40.76681,-74.22229],[40.76645,-74.22264],[40.76607,-74.22302],[40.76575,-74.22333],[40.76495,-74.22429],
+  [40.76382,-74.22564],[40.7636,-74.22589],[40.76311,-74.22638],[40.76277,-74.2267],[40.76091,-74.22869],[40.7589,-74.231],
+  [40.75836,-74.23155],[40.75663,-74.23336],[40.75578,-74.23427],[40.7553,-74.23483],[40.75501,-74.23516],[40.7549,-74.23529],
+  [40.75454,-74.23583],[40.75446,-74.23592],[40.75243,-74.23813],[40.75287,-74.23944],[40.75245,-74.23989],[40.75199,-74.24028],
+  [40.75344,-74.24322],[40.75359,-74.24364],[40.75353,-74.24396],[40.75381,-74.24449],[40.75457,-74.24606],[40.75515,-74.2475],
+  [40.75527,-74.24778],[40.75601,-74.24749],[40.7565,-74.24884],[40.75645,-74.24915],[40.75657,-74.24979],[40.75615,-74.24997],
+  [40.75648,-74.25101],[40.75676,-74.25195],[40.75713,-74.25271]
+];
+
+/* ---- 2. Street network (demo segments named for real Orange streets) ---- */
+/* Real Orange street network (449 clipped segments, 197 named streets),
+   lifted from the Street Paving Program app so trees sit on actual streets. */
+const STREET_DATA=[{n:"Vernon Place",a:"VER",g:[[40.78063,-74.23033],[40.781202,-74.231502]]},
+{n:"Highland Avenue",a:"HIG",g:[[40.760548,-74.234655],[40.760563,-74.234714],[40.76057,-74.234744],[40.760892,-74.235793],[40.761092,-74.236429],[40.761187,-74.23674],[40.761277,-74.236882],[40.761998,-74.237595],[40.762353,-74.237957],[40.762534,-74.238181],[40.762751,-74.238512],[40.762957,-74.238875],[40.763208,-74.239257],[40.764064,-74.24056],[40.764534,-74.241275],[40.764856,-74.241765],[40.765,-74.241984],[40.765048,-74.242057],[40.765256,-74.242375],[40.765472,-74.242703],[40.765581,-74.242869],[40.765823,-74.243238],[40.766136,-74.243671],[40.766222,-74.243723]]},
+{n:"South Jefferson Street",a:"JEF",g:[[40.768346,-74.243418],[40.768302,-74.243459],[40.767676,-74.244033],[40.76655,-74.245067],[40.765963,-74.245605],[40.76552,-74.246011],[40.765174,-74.246329]]},
+{n:"South Jefferson Street",a:"JEF",g:[[40.765059,-74.246042],[40.764208,-74.24677],[40.763911,-74.247026],[40.763827,-74.247097],[40.763636,-74.247261],[40.763128,-74.247696]]},
+{n:"South Jefferson Street",a:"JEF",g:[[40.77563,-74.237313],[40.775237,-74.237595],[40.774986,-74.237781],[40.77433,-74.238265],[40.774198,-74.238362],[40.77349,-74.238885],[40.773252,-74.239061],[40.772623,-74.239526],[40.772527,-74.239597]]},
+{n:"Hickory Street",a:"HIC",g:[[40.770288,-74.225163],[40.769967,-74.225194]]},
+{n:"North Day Street",a:"DAY",g:[[40.78038,-74.223808],[40.780253,-74.223905],[40.780182,-74.223927],[40.78016,-74.223933]]},
+{n:"Forest Street",a:"FOR",g:[[40.765174,-74.246329],[40.765059,-74.246042],[40.765034,-74.24598],[40.764909,-74.245676]]},
+{n:"Lincoln Avenue",a:"LIN",g:[[40.767162,-74.238673],[40.767087,-74.238745],[40.766464,-74.239365]]},
+{n:"Sylvan Way",a:"SYL",g:[[40.758035,-74.239203],[40.758036,-74.239129],[40.75803,-74.239075],[40.758025,-74.23903],[40.758015,-74.238958],[40.75801,-74.238912],[40.757997,-74.238837]]},
+{n:"Jackson Street",a:"JAC",g:[[40.766898,-74.235308],[40.767192,-74.235846],[40.767299,-74.236018],[40.767406,-74.2362],[40.76823,-74.237596]]},
+{n:"Stirling Avenue",a:"STI",g:[[40.752445,-74.239894],[40.7527,-74.240401],[40.752823,-74.240659],[40.753236,-74.241483],[40.753818,-74.242665]]},
+{n:"Park Street",a:"PAR",g:[[40.770288,-74.225163],[40.770394,-74.225143],[40.770741,-74.225],[40.770918,-74.224924],[40.771375,-74.224729],[40.771659,-74.224608],[40.772193,-74.224379],[40.772297,-74.224335],[40.77302,-74.224001],[40.773095,-74.223963],[40.773712,-74.223703],[40.774086,-74.223537]]},
+{n:"Hampton Terrace",a:"HAM",g:[[40.763817,-74.225643],[40.764331,-74.226429]]},
+{n:"Tompkins Street",a:"TOM",g:[[40.767217,-74.246155],[40.767215,-74.246157],[40.766792,-74.246467],[40.766622,-74.246592],[40.765734,-74.247197],[40.765581,-74.247303]]},
+{n:"High Street",a:"HIGH",g:[[40.773714,-74.233617],[40.773808,-74.233524],[40.77399,-74.233345]]},
+{n:"Langdon Street",a:"LAN",g:[[40.763374,-74.248236],[40.762894,-74.248598],[40.76278,-74.248681],[40.761773,-74.249452],[40.761332,-74.249724],[40.760856,-74.250019],[40.760225,-74.250403],[40.759496,-74.25085]]},
+{n:"Reock Street",a:"REO",g:[[40.770249,-74.229139],[40.770311,-74.229299],[40.770876,-74.230745]]},
+{n:"Ogden Street",a:"OGD",g:[[40.765032,-74.230628],[40.764958,-74.230702],[40.764729,-74.230931],[40.764117,-74.231541],[40.763402,-74.232242]]},
+{n:"Ogden Street",a:"OGD",g:[[40.763494,-74.232477],[40.762059,-74.233221]]},
+{n:"Chestnut Street",a:"CHE",g:[[40.759974,-74.249615],[40.760225,-74.250403],[40.760704,-74.251909],[40.760855,-74.252392],[40.760999,-74.252851]]},
+{n:"Railroad Place",a:"RAI",g:[[40.771837,-74.231516],[40.771671,-74.230935],[40.771601,-74.230722],[40.771449,-74.230258]]},
+{n:"Crane Street",a:"CRA",g:[[40.770702,-74.232184],[40.770707,-74.232274],[40.770711,-74.232363]]},
+{n:"Clairmont Terrace",a:"CLA",g:[[40.757335,-74.239868],[40.757309,-74.239804],[40.755587,-74.235627]]},
+{n:"Vose Avenue",a:"VOS",g:[[40.758118,-74.250018],[40.757369,-74.250471],[40.756958,-74.250719],[40.756841,-74.25079],[40.756483,-74.251006],[40.756479,-74.251008]]},
+{n:"Coogan Avenue",a:"COO",g:[[40.788528,-74.218933],[40.788501,-74.218977],[40.788428,-74.219098],[40.788411,-74.219131],[40.788399,-74.219169],[40.78839,-74.219207],[40.788384,-74.219243],[40.788381,-74.219281],[40.788379,-74.219973]]},
+{n:"Elmwynd Drive",a:"ELM",g:[[40.756877,-74.235363],[40.756894,-74.235426],[40.756902,-74.235458],[40.756911,-74.235494],[40.756949,-74.23566],[40.75737,-74.237445],[40.757533,-74.238137],[40.757573,-74.238295],[40.7577,-74.238556],[40.757903,-74.238746],[40.757935,-74.238776],[40.757997,-74.238837],[40.758131,-74.238924],[40.758308,-74.239012],[40.75854,-74.23911],[40.758676,-74.239216],[40.758812,-74.239405],[40.7594,-74.240493],[40.759891,-74.241218],[40.759945,-74.241308]]},
+{n:"Walsh Avenue",a:"WAL",g:[[40.787023,-74.219327],[40.788325,-74.219147],[40.788355,-74.219148],[40.788381,-74.219157],[40.788399,-74.219169]]},
+{n:"Wilson Place",a:"WIL",g:[[40.76536,-74.22662],[40.76493,-74.22584]]},
+{n:"Union Street",a:"UNI",g:[[40.764593,-74.249551],[40.764755,-74.249903],[40.764862,-74.250136],[40.764992,-74.250419],[40.765265,-74.251008]]},
+{n:"Lighthipe Place",a:"LIG",g:[[40.764866,-74.237474],[40.764898,-74.237534],[40.765503,-74.238661],[40.765538,-74.238726],[40.76556,-74.238767]]},
+{n:"Church Street",a:"CHU",g:[[40.765023,-74.248523],[40.764742,-74.24873],[40.764499,-74.248911],[40.764252,-74.249091],[40.763887,-74.249355]]},
+{n:"Codner Street",a:"COD",g:[[40.7695,-74.239202],[40.769565,-74.239288],[40.769707,-74.239473],[40.769824,-74.239618],[40.769933,-74.239822]]},
+{n:"Monroe Street",a:"MON",g:[[40.772506,-74.23732],[40.773252,-74.239061]]},
+{n:"Lindsley Place",a:"LIND",g:[[40.75501,-74.23516],[40.755012,-74.235165],[40.755222,-74.235821],[40.755246,-74.235895]]},
+{n:"Joyce Street",a:"JOY",g:[[40.769931,-74.241433],[40.770257,-74.241988],[40.770444,-74.242395],[40.77049,-74.242496]]},
+{n:"Ivy Court",a:"IVY",g:[[40.766359,-74.231429],[40.766992,-74.232965]]},
+{n:"Sterling Drive East",a:"STE",g:[[40.75322,-74.239974],[40.752747,-74.240362],[40.7527,-74.240401]]},
+{n:"Sterling Drive East",a:"STE",g:[[40.752918,-74.239272],[40.752874,-74.239286],[40.752848,-74.239298],[40.752828,-74.239315]]},
+{n:"Austen Road",a:"AUS",g:[[40.757893,-74.235188],[40.757906,-74.235257],[40.757912,-74.235287],[40.757916,-74.235306],[40.757949,-74.235475],[40.758023,-74.235832],[40.758076,-74.236031],[40.758186,-74.236333],[40.758277,-74.236656],[40.758409,-74.237],[40.758482,-74.237142],[40.758473,-74.237284],[40.758419,-74.237344],[40.757533,-74.238137]]},
+{n:"Minton Place",a:"MIN",g:[[40.76823,-74.237596],[40.768507,-74.238077],[40.768588,-74.238219],[40.768852,-74.238678],[40.769305,-74.239466]]},
+{n:"Sterling Drive North",a:"STER",g:[[40.752918,-74.239272],[40.752964,-74.239296],[40.753148,-74.239743],[40.75322,-74.239974],[40.753274,-74.240177],[40.753291,-74.24027]]},
+{n:"South Valley Road",a:"VAL",g:[[40.766817,-74.249635],[40.766851,-74.2497]]},
+{n:"South Valley Road",a:"VAL",g:[[40.766821,-74.249632],[40.766817,-74.249635]]},
+{n:"South Day Street",a:"DAY2",g:[[40.771449,-74.230258],[40.771609,-74.230124],[40.771706,-74.230042],[40.772069,-74.229765],[40.772199,-74.229665]]},
+{n:"Distributor Road",a:"DIS",g:[[40.766816,-74.222321],[40.766855,-74.222559],[40.766923,-74.222972],[40.767052,-74.223596],[40.76713,-74.223879],[40.767162,-74.223996],[40.767183,-74.224056],[40.767196,-74.224095],[40.767277,-74.224353],[40.767424,-74.224813],[40.767785,-74.225939],[40.767865,-74.22609],[40.768216,-74.22676],[40.768557,-74.227404],[40.768955,-74.228059],[40.769812,-74.229326]]},
+{n:"Ward Street",a:"WAR",g:[[40.770724,-74.221575],[40.772193,-74.224379]]},
+{n:"Sterling Drive West",a:"STE2",g:[[40.753291,-74.24027],[40.753276,-74.2403],[40.752871,-74.24062],[40.752823,-74.240659]]},
+{n:"Austin Place",a:"AUST",g:[[40.76651,-74.249058],[40.76599,-74.24953]]},
+{n:"William Street",a:"WILL",g:[[40.771659,-74.224608],[40.772087,-74.225648],[40.7724,-74.226341],[40.77294,-74.227594],[40.773237,-74.228284],[40.773452,-74.228824]]},
+{n:"Merrill Court",a:"MER",g:[[40.778484,-74.232959],[40.7789,-74.23393],[40.778941,-74.234026]]},
+{n:"Baldwin Terrace",a:"BAL",g:[[40.779557,-74.231201],[40.779185,-74.230358],[40.779966,-74.229726]]},
+{n:"Mitchell Street",a:"MIT",g:[[40.768133,-74.242901],[40.768346,-74.243418],[40.768632,-74.244068]]},
+{n:"Mitchell Street",a:"MIT",g:[[40.767663,-74.241795],[40.767724,-74.241939],[40.767763,-74.242033],[40.767854,-74.242248],[40.767968,-74.242517]]},
+{n:"Conover Terrace",a:"CON",g:[[40.765739,-74.240105],[40.765769,-74.240158],[40.767158,-74.242512]]},
+{n:"Cleveland Street",a:"CLE",g:[[40.775773,-74.229778],[40.774244,-74.230972],[40.773689,-74.231405],[40.773333,-74.231684],[40.773137,-74.231837],[40.773051,-74.231916]]},
+{n:"Cleveland Street",a:"CLE",g:[[40.775711,-74.229643],[40.776136,-74.229312],[40.776375,-74.229127],[40.776796,-74.2288],[40.776932,-74.228694],[40.777054,-74.2286],[40.777393,-74.228336],[40.778127,-74.227775],[40.778276,-74.227661],[40.778595,-74.227417],[40.778659,-74.227367],[40.779167,-74.22697],[40.779769,-74.22658],[40.780023,-74.226403],[40.780123,-74.226338],[40.780621,-74.226012],[40.780643,-74.225999],[40.780692,-74.225967],[40.780964,-74.225793],[40.781027,-74.225752]]},
+{n:"Burnside Street",a:"BUR",g:[[40.784036,-74.22613],[40.78409,-74.22607],[40.785886,-74.224108],[40.785959,-74.224029]]},
+{n:"Windsor Place",a:"WIN",g:[[40.770372,-74.22593],[40.769909,-74.226373],[40.769875,-74.226406],[40.769831,-74.226448]]},
+{n:"Carteret Terrace",a:"CAR",g:[[40.762924,-74.236635],[40.762997,-74.23663],[40.763066,-74.23664],[40.763749,-74.236809],[40.763852,-74.236847],[40.763955,-74.2369],[40.764045,-74.236995],[40.76453,-74.23784]]},
+{n:"Waverly Place",a:"WAV",g:[[40.765885,-74.241576],[40.766339,-74.242124],[40.766889,-74.242874]]},
+{n:"Watchung Avenue",a:"WAT",g:[[40.779494,-74.233064],[40.779602,-74.232968],[40.78014,-74.232482],[40.780999,-74.231693],[40.781202,-74.231502],[40.781949,-74.230837]]},
+{n:"Watchung Avenue",a:"WAT",g:[[40.782345,-74.23047],[40.782147,-74.230654]]},
+{n:"Tremont Place",a:"TRE",g:[[40.758914,-74.243225],[40.758873,-74.243271],[40.757861,-74.244415],[40.757863,-74.244464],[40.758898,-74.245916],[40.758936,-74.245935],[40.759003,-74.24589],[40.759969,-74.245143]]},
+{n:"West Christopher Street",a:"CHR",g:[[40.763308,-74.250359],[40.763601,-74.251212],[40.763697,-74.251535]]},
+{n:"McLaughlin Place",a:"MCL",g:[[40.75824,-74.253313],[40.75776,-74.252197]]},
+{n:"Liberty Street",a:"LIB",g:[[40.764992,-74.250419],[40.763601,-74.251212],[40.762959,-74.251627]]},
+{n:"Valley Street",a:"VALL",g:[[40.767255,-74.24758],[40.76672,-74.247886],[40.766106,-74.248301],[40.765775,-74.248604],[40.765253,-74.249019],[40.764593,-74.249551],[40.764134,-74.249882],[40.763514,-74.250236],[40.763308,-74.250359],[40.762314,-74.250906],[40.761325,-74.251517],[40.760704,-74.251909],[40.759957,-74.252332],[40.759933,-74.252346],[40.75905,-74.252821],[40.75859,-74.253095],[40.758363,-74.253231],[40.75824,-74.253313],[40.758076,-74.253421],[40.757847,-74.253602],[40.757513,-74.253864]]},
+{n:"Valley Street",a:"VALL",g:[[40.767645,-74.24729],[40.767607,-74.247319],[40.767255,-74.24758]]},
+{n:"Lincoln Avenue",a:"LIN",g:[[40.773421,-74.232931],[40.773345,-74.232991],[40.773057,-74.233219],[40.772931,-74.233328],[40.772565,-74.233641],[40.772461,-74.233729],[40.772111,-74.234026]]},
+{n:"Capuchin Way",a:"CAP",g:[[40.769796,-74.231476],[40.769524,-74.230766],[40.76942,-74.230497],[40.769272,-74.230113],[40.769064,-74.229679],[40.768937,-74.229478],[40.768497,-74.228788]]},
+{n:"Beach Street",a:"BEA",g:[[40.760569,-74.249126],[40.760856,-74.250019],[40.761325,-74.251517],[40.761581,-74.252326]]},
+{n:"Ridge Street",a:"RID",g:[[40.777178,-74.232957],[40.77713,-74.23299],[40.776437,-74.233425],[40.77596,-74.233733],[40.774409,-74.234736],[40.774309,-74.234801]]},
+{n:"Freeman Street",a:"FRE",g:[[40.766255,-74.244583],[40.76655,-74.245067],[40.766831,-74.245528],[40.766831,-74.245529]]},
+{n:"Freeman Street",a:"FRE",g:[[40.767075,-74.245928],[40.767215,-74.246157],[40.76722,-74.24617]]},
+{n:"Mosswood Avenue",a:"MOS",g:[[40.756832,-74.240367],[40.756786,-74.240411],[40.756072,-74.241086],[40.755723,-74.241417],[40.755406,-74.241597],[40.755279,-74.241642],[40.754903,-74.241724],[40.754809,-74.241779],[40.754468,-74.242014],[40.754148,-74.242296],[40.753852,-74.242619],[40.753818,-74.242665],[40.753583,-74.242982],[40.75344,-74.24322]]},
+{n:"Lafayette Street",a:"LAF",g:[[40.771647,-74.241323],[40.77113,-74.24159]]},
+{n:"Lafayette Street",a:"LAF",g:[[40.771089,-74.241611],[40.770257,-74.241988]]},
+{n:"Henry Street",a:"HEN",g:[[40.767151,-74.230744],[40.767459,-74.231551],[40.767555,-74.231802],[40.767917,-74.232748]]},
+{n:"Berkeley Road",a:"BER",g:[[40.761689,-74.23989],[40.762666,-74.24137]]},
+{n:"Prince Street",a:"PRI",g:[[40.769054,-74.223468],[40.768343,-74.22395]]},
+{n:"Hawthorne Street",a:"HAW",g:[[40.777828,-74.225692],[40.777858,-74.225759],[40.778595,-74.227417],[40.778658,-74.227488],[40.779318,-74.22891],[40.779369,-74.229021]]},
+{n:"South Center Street",a:"CEN",g:[[40.755763,-74.235538],[40.755951,-74.235511],[40.756544,-74.235412],[40.756877,-74.235363],[40.757406,-74.23527],[40.757893,-74.235188],[40.757997,-74.23517],[40.758345,-74.235111],[40.758469,-74.235088],[40.758837,-74.235017],[40.759164,-74.234953],[40.7595,-74.234882],[40.759605,-74.23486],[40.760055,-74.234764],[40.760401,-74.234689],[40.760485,-74.23467],[40.760548,-74.234655],[40.76061,-74.234643],[40.760942,-74.234574],[40.761456,-74.234463],[40.76151,-74.23445],[40.761834,-74.234382],[40.762129,-74.234319],[40.762442,-74.234233],[40.762545,-74.234198],[40.762659,-74.234158],[40.763056,-74.234012],[40.763189,-74.233959],[40.763333,-74.233906],[40.76345,-74.233863],[40.76361,-74.233792],[40.763709,-74.233734],[40.763819,-74.233666],[40.763925,-74.233598],[40.764036,-74.233513],[40.764183,-74.23338],[40.764466,-74.233125],[40.764793,-74.232824],[40.765281,-74.232382],[40.765431,-74.232241],[40.765446,-74.232226],[40.765611,-74.232065],[40.765822,-74.23188]]},
+{n:"Glebe Street",a:"GLE",g:[[40.771455,-74.239005],[40.771897,-74.24003],[40.772182,-74.240692],[40.772212,-74.240762]]},
+{n:"North Center Street",a:"CENT",g:[[40.771712,-74.228437],[40.772383,-74.227994],[40.77256,-74.227888],[40.77294,-74.227594],[40.773911,-74.22703],[40.773931,-74.227017],[40.774298,-74.226693],[40.774452,-74.226557],[40.774998,-74.226076],[40.775612,-74.225534],[40.776003,-74.225189]]},
+{n:"North Center Street",a:"CENT",g:[[40.779421,-74.223205],[40.779403,-74.223242],[40.779383,-74.223268],[40.779358,-74.223293],[40.779329,-74.223314],[40.77627,-74.225474],[40.776164,-74.225549]]},
+{n:"Highland Terrace",a:"HIG2",g:[[40.765823,-74.243238],[40.76511,-74.244046],[40.764983,-74.244191]]},
+{n:"Haxtun Avenue",a:"HAX",g:[[40.75602,-74.239083],[40.75545,-74.239619],[40.754394,-74.240525],[40.753279,-74.24145],[40.753236,-74.241483]]},
+{n:"Clay Street",a:"CLAY",g:[[40.760913,-74.228687],[40.760914,-74.228689],[40.760922,-74.228702],[40.760981,-74.228792],[40.761306,-74.229303],[40.761332,-74.229344]]},
+{n:"Nassau Place",a:"NAS",g:[[40.764744,-74.247924],[40.764157,-74.248385]]},
+{n:"Berwick Street",a:"BERW",g:[[40.759185,-74.241889],[40.759229,-74.241952],[40.761188,-74.244754],[40.7612,-74.244772]]},
+{n:"New Street",a:"NEW",g:[[40.772297,-74.224335],[40.773611,-74.226529],[40.773911,-74.22703],[40.774131,-74.227397],[40.774186,-74.227489],[40.774533,-74.228069]]},
+{n:"Roberts Road",a:"ROB",g:[[40.759954,-74.236107],[40.760399,-74.237486],[40.760515,-74.237794],[40.760662,-74.23803],[40.761118,-74.238635]]},
+{n:"Berryman Place",a:"BERR",g:[[40.783642,-74.226799],[40.783665,-74.226863],[40.783752,-74.227101],[40.783878,-74.227615],[40.783887,-74.227674],[40.783861,-74.227723],[40.783535,-74.228029],[40.78265,-74.228847],[40.782587,-74.228905]]},
+{n:"Cary Street",a:"CARY",g:[[40.771652,-74.241334],[40.771647,-74.241323],[40.771646,-74.241294]]},
+{n:"Cary Street",a:"CARY",g:[[40.771635,-74.241218],[40.771607,-74.241111],[40.771301,-74.240464],[40.770999,-74.239858]]},
+{n:"Frankfort Street",a:"FRA",g:[[40.768801,-74.237025],[40.76856,-74.236626],[40.768291,-74.236181]]},
+{n:"Glenwood Avenue",a:"GLEN",g:[[40.768129,-74.221204],[40.768258,-74.221123],[40.768601,-74.220908],[40.769216,-74.220521],[40.769708,-74.220219]]},
+{n:"Berwyn Street",a:"BER2",g:[[40.764951,-74.224289],[40.76564,-74.225247]]},
+{n:"Carteret Place",a:"CART",g:[[40.765947,-74.236454],[40.765811,-74.236518],[40.765778,-74.236533],[40.765726,-74.236557],[40.765151,-74.237136],[40.765092,-74.237195],[40.764866,-74.237474],[40.76453,-74.23784],[40.764261,-74.238129],[40.763208,-74.239257]]},
+{n:"Central Avenue",a:"CEN2",g:[[40.766775,-74.235451],[40.766751,-74.235489]]},
+{n:"Wallace Street",a:"WALL",g:[[40.77302,-74.224001],[40.774021,-74.225799],[40.774452,-74.226557]]},
+{n:"Manor Terrace",a:"MAN",g:[[40.775247,-74.236569],[40.776421,-74.235583]]},
+{n:"East Highland Avenue",a:"HIG3",g:[[40.758896,-74.231004],[40.759064,-74.231389]]},
+{n:"East Highland Avenue",a:"HIG3",g:[[40.759961,-74.233258],[40.760062,-74.233503],[40.760522,-74.234549],[40.76053,-74.23458],[40.760548,-74.234655]]},
+{n:"Oxford Street",a:"OXF",g:[[40.761735,-74.23236],[40.762059,-74.233221],[40.762442,-74.234233]]},
+{n:"Taylor Street",a:"TAY",g:[[40.767034,-74.230831],[40.766098,-74.228381]]},
+{n:"Lawn Ridge Road",a:"LAW",g:[[40.754596,-74.243506],[40.755321,-74.245236],[40.755347,-74.245329]]},
+{n:"Lawn Ridge Road",a:"LAW",g:[[40.756033,-74.246762],[40.756189,-74.246699],[40.756263,-74.246689],[40.756364,-74.246716],[40.756431,-74.246804],[40.756501,-74.247028],[40.756576,-74.247189],[40.756722,-74.247426],[40.756809,-74.247598],[40.75689,-74.247835],[40.756955,-74.248101],[40.757002,-74.248238],[40.757075,-74.248352],[40.757221,-74.248523],[40.757298,-74.248688],[40.757343,-74.248875],[40.757351,-74.249063],[40.757375,-74.249153],[40.757439,-74.249247],[40.757472,-74.24935]]},
+{n:"Lawn Ridge Road",a:"LAW",g:[[40.755347,-74.245329],[40.755386,-74.245419],[40.755498,-74.245595],[40.755578,-74.245782],[40.755621,-74.245936],[40.755692,-74.246231],[40.755756,-74.246413],[40.755873,-74.246641],[40.755939,-74.246702],[40.756033,-74.246762]]},
+{n:"South Essex Avenue",a:"ESS",g:[[40.772689,-74.230916],[40.772566,-74.231002],[40.771837,-74.231516]]},
+{n:"White Street",a:"WHI",g:[[40.774882,-74.227822],[40.774899,-74.22786],[40.775287,-74.22871],[40.775404,-74.228967],[40.775711,-74.229643],[40.775773,-74.229778],[40.776057,-74.230403],[40.776132,-74.230568],[40.776236,-74.23079],[40.776347,-74.231026],[40.776492,-74.231337]]},
+{n:"North Essex Avenue",a:"ESSE",g:[[40.772689,-74.230916],[40.77301,-74.230693],[40.773551,-74.2303],[40.77359,-74.230272]]},
+{n:"North Essex Avenue",a:"ESSE",g:[[40.775287,-74.22871],[40.775695,-74.22832],[40.776982,-74.227391]]},
+{n:"Mechanic Street",a:"MEC",g:[[40.768521,-74.23235],[40.768931,-74.233337],[40.769334,-74.234246],[40.770097,-74.235728]]},
+{n:"New England Terrace",a:"ENG",g:[[40.766356,-74.239474],[40.766397,-74.239539],[40.767392,-74.241155],[40.767527,-74.241475],[40.767663,-74.241795]]},
+{n:"Duane Street",a:"DUA",g:[[40.775865,-74.224879],[40.775965,-74.224802],[40.776586,-74.224325],[40.778364,-74.222959],[40.778469,-74.222667]]},
+{n:"Matthew Street",a:"MAT",g:[[40.768291,-74.236181],[40.768357,-74.236111],[40.768959,-74.235477]]},
+{n:"Elliot Place",a:"ELL",g:[[40.755771,-74.234281],[40.75578,-74.234311]]},
+{n:"Flagg Street",a:"FLA",g:[[40.765729,-74.247583],[40.765121,-74.248106]]},
+{n:"Lincoln Place",a:"LINC",g:[[40.7612,-74.244772],[40.762579,-74.246854]]},
+{n:"Ridge Court",a:"RIDG",g:[[40.77743,-74.233619],[40.777957,-74.233317]]},
+{n:"Elliot Place",a:"ELL",g:[[40.75578,-74.234311],[40.75586,-74.234545],[40.755963,-74.234883],[40.755983,-74.234948]]},
+{n:"Sylvan Way",a:"SYL",g:[[40.758035,-74.239203],[40.757747,-74.239476],[40.757335,-74.239868],[40.756883,-74.240316],[40.756832,-74.240367]]},
+{n:"Park Place",a:"PARK",g:[[40.776882,-74.22282],[40.776864,-74.22289],[40.776182,-74.223409],[40.77556,-74.223882],[40.775455,-74.223961]]},
+{n:"Pierson Street",a:"PIE",g:[[40.766705,-74.227958],[40.767499,-74.229999],[40.76765,-74.230385]]},
+{n:"Tony Galento Plaza",a:"TON",g:[[40.773051,-74.231916],[40.772956,-74.231986],[40.772571,-74.232279],[40.772352,-74.23244],[40.77208,-74.232608]]},
+{n:"Tony Galento Plaza",a:"TON",g:[[40.77208,-74.232608],[40.772001,-74.232084],[40.771912,-74.231715],[40.771837,-74.231516]]},
+{n:"Willow Street",a:"WIL2",g:[[40.759057,-74.247004],[40.759764,-74.248235]]},
+{n:"Parkview Terrace",a:"PAR2",g:[[40.760987,-74.232729],[40.761487,-74.234373],[40.76151,-74.23445]]},
+{n:"Linden Place",a:"LIN2",g:[[40.776437,-74.233425],[40.776571,-74.23378],[40.777451,-74.236172]]},
+{n:"Tompkins Place",a:"TOMP",g:[[40.766339,-74.245963],[40.766503,-74.246327],[40.766622,-74.246592]]},
+{n:"Scotland Road",a:"SCO",g:[[40.773351,-74.234057],[40.773343,-74.234066],[40.773169,-74.234278],[40.773131,-74.234324],[40.772688,-74.234861],[40.772149,-74.235515],[40.772069,-74.235629]]},
+{n:"Madison Street",a:"MAD",g:[[40.771874,-74.237933],[40.77213,-74.238513],[40.772623,-74.239526]]},
+{n:"Freeway Drive East",a:"FREE",g:[[40.766072,-74.223038],[40.766068,-74.223022]]},
+{n:"Clark Street",a:"CLAR",g:[[40.757512,-74.253865],[40.757513,-74.253864]]},
+{n:"Oakwood Avenue",a:"OAK",g:[[40.768811,-74.222696],[40.768744,-74.222761],[40.768446,-74.222996],[40.768325,-74.223091],[40.767974,-74.223366]]},
+{n:"Bradford Street",a:"BRA",g:[[40.782147,-74.227997],[40.783642,-74.226799],[40.783688,-74.226761],[40.784239,-74.226303]]},
+{n:"Morris Street",a:"MOR",g:[[40.759314,-74.250269],[40.759496,-74.25085],[40.759957,-74.252332]]},
+{n:"South Street",a:"SOU",g:[[40.768839,-74.229814],[40.768497,-74.228788]]},
+{n:"Main Street",a:"MAI",g:[[40.768024,-74.220968],[40.768056,-74.22104],[40.768117,-74.221178],[40.768129,-74.221204],[40.768168,-74.221288],[40.768299,-74.221577],[40.768782,-74.222633],[40.768811,-74.222696],[40.768848,-74.222768],[40.768917,-74.2229],[40.768939,-74.222944]]},
+{n:"Hickory Street",a:"HIC",g:[[40.769967,-74.225194],[40.769928,-74.2252],[40.769369,-74.225755],[40.769223,-74.225895]]},
+{n:"Harrison Street",a:"HAR",g:[[40.756615,-74.233385],[40.756329,-74.234114],[40.756243,-74.234326],[40.755983,-74.234948],[40.755868,-74.235267],[40.755763,-74.235538]]},
+{n:"North Day Street",a:"DAY",g:[[40.772199,-74.229665],[40.772771,-74.229286],[40.772906,-74.229195],[40.773207,-74.22899],[40.773452,-74.228824],[40.774533,-74.228069],[40.774882,-74.227822],[40.774938,-74.227782],[40.775657,-74.227262],[40.776618,-74.226566]]},
+{n:"Fuller Terrace",a:"FUL",g:[[40.762924,-74.236635],[40.762827,-74.236727],[40.762539,-74.23693],[40.762368,-74.237096],[40.761998,-74.237595]]},
+{n:"Fuller Terrace",a:"FUL",g:[[40.762129,-74.234319],[40.762399,-74.235245],[40.762924,-74.236635]]},
+{n:"Thomas Boulevard",a:"THO",g:[[40.781639,-74.221007],[40.781303,-74.221117],[40.78124,-74.22114],[40.781179,-74.221169],[40.7811,-74.221215],[40.781014,-74.221272],[40.780924,-74.221339],[40.780867,-74.22139],[40.780819,-74.22144],[40.780776,-74.221495],[40.780737,-74.221557],[40.780703,-74.221621],[40.78068,-74.221682],[40.780657,-74.221751],[40.780588,-74.222026],[40.780439,-74.222622],[40.780287,-74.223228],[40.780266,-74.223329],[40.780251,-74.223419],[40.780211,-74.223704]]},
+{n:"Irving Terrace",a:"IRV",g:[[40.753807,-74.244485],[40.754596,-74.243506],[40.755363,-74.24273]]},
+{n:"Berg Place",a:"BERG",g:[[40.761456,-74.248533],[40.761109,-74.248761],[40.761064,-74.248628]]},
+{n:"Hillyer Street",a:"HIL",g:[[40.768811,-74.222696],[40.768873,-74.222635],[40.769144,-74.222476],[40.769249,-74.222415],[40.769298,-74.222386],[40.769834,-74.222088],[40.770724,-74.221575],[40.77119,-74.22131],[40.771525,-74.221109]]},
+{n:"Bell Street",a:"BEL",g:[[40.772506,-74.23732],[40.771896,-74.237766],[40.771874,-74.237845],[40.771874,-74.237933]]},
+{n:"Chapman Street",a:"CHA",g:[[40.765454,-74.228801],[40.765864,-74.229816],[40.76622,-74.230702],[40.766473,-74.231324]]},
+{n:"Adrianne Court",a:"ADR",g:[[40.761768,-74.236037],[40.761671,-74.236113],[40.761092,-74.236429]]},
+{n:"Center Alley",a:"CEN3",g:[[40.770482,-74.227039],[40.770511,-74.227202],[40.770493,-74.22724],[40.770423,-74.227297],[40.770412,-74.227346],[40.770491,-74.227561],[40.770538,-74.227668],[40.77069,-74.228058],[40.7708,-74.22849],[40.77087,-74.228651],[40.770942,-74.228819]]},
+{n:"Berkeley Avenue",a:"BERK",g:[[40.755347,-74.245329],[40.754951,-74.245707],[40.75457,-74.246059]]},
+{n:"Berkeley Avenue",a:"BERK",g:[[40.762957,-74.238875],[40.76235,-74.239361],[40.761689,-74.23989],[40.761035,-74.240414],[40.760859,-74.240555],[40.759945,-74.241308],[40.759404,-74.241721],[40.759278,-74.241818],[40.759185,-74.241889],[40.758719,-74.242272],[40.758499,-74.242453],[40.758429,-74.24251],[40.758397,-74.24254],[40.75809,-74.24282],[40.756227,-74.244535],[40.755347,-74.245329]]},
+{n:"Hill Street",a:"HILL",g:[[40.768651,-74.226503],[40.768941,-74.227108]]},
+{n:"Hillside Avenue",a:"HIL2",g:[[40.759945,-74.241308],[40.759984,-74.241367],[40.761812,-74.244131],[40.762371,-74.244992],[40.762468,-74.245141],[40.763299,-74.246423]]},
+{n:"Elm Street",a:"ELM2",g:[[40.771541,-74.221127],[40.773095,-74.223963]]},
+{n:"Elizabeth Street",a:"ELI",g:[[40.778786,-74.224987],[40.7788,-74.225061],[40.779167,-74.22697]]},
+{n:"Thomas Boulevard",a:"THO",g:[[40.779421,-74.223205],[40.779436,-74.223166],[40.779458,-74.223119],[40.779488,-74.223066],[40.779523,-74.223018],[40.779609,-74.222915],[40.779725,-74.222788],[40.779884,-74.22259],[40.779945,-74.222519],[40.779998,-74.222447],[40.780038,-74.222392],[40.780057,-74.222366]]},
+{n:"Heywood Avenue",a:"HEY",g:[[40.753123,-74.237575],[40.753153,-74.237644],[40.754394,-74.240525],[40.754903,-74.241724],[40.755363,-74.24273],[40.756227,-74.244535],[40.75759,-74.247385],[40.757956,-74.24815],[40.758204,-74.248643],[40.758283,-74.2488],[40.758346,-74.248925]]},
+{n:"Thomas Street",a:"THOM",g:[[40.786399,-74.220254],[40.787083,-74.22016],[40.787495,-74.220101],[40.788379,-74.219973]]},
+{n:"Park Drive",a:"PAR3",g:[[40.763258,-74.227509],[40.763226,-74.227688],[40.763219,-74.227729],[40.763137,-74.228183],[40.763113,-74.228256],[40.762954,-74.228744],[40.762864,-74.229238],[40.762865,-74.229445],[40.762865,-74.229605],[40.762902,-74.230056],[40.762886,-74.230345],[40.762832,-74.230674],[40.762706,-74.23091],[40.762664,-74.230976],[40.762499,-74.231171],[40.762062,-74.231564],[40.761782,-74.231774],[40.761567,-74.231934],[40.761433,-74.232007],[40.761215,-74.232125],[40.761113,-74.232163],[40.7609,-74.232244],[40.76063,-74.232305],[40.760375,-74.232258],[40.760303,-74.232255],[40.760262,-74.232236],[40.759727,-74.231975],[40.759709,-74.231965],[40.759509,-74.23186],[40.759368,-74.23186],[40.759219,-74.231885],[40.759055,-74.232032],[40.759029,-74.232053],[40.758733,-74.232481],[40.758571,-74.232647],[40.758383,-74.232751],[40.758213,-74.232808],[40.757922,-74.232887],[40.757679,-74.232935],[40.757426,-74.233067],[40.757192,-74.233281],[40.757013,-74.233507],[40.756878,-74.233733],[40.756697,-74.234177],[40.756672,-74.234409],[40.75669,-74.234692],[40.756877,-74.235363]]},
+{n:"Park Drive",a:"PAR3",g:[[40.764466,-74.229649],[40.76436,-74.229646],[40.764039,-74.229635],[40.763789,-74.229739],[40.763601,-74.229889],[40.7634,-74.230054],[40.763228,-74.230238],[40.763181,-74.23029],[40.762832,-74.230674]]},
+{n:"Gist Place",a:"GIS",g:[[40.779544,-74.224401],[40.779578,-74.224476],[40.779701,-74.22475],[40.77972,-74.224802],[40.779729,-74.224848],[40.779811,-74.2255],[40.77982,-74.225595],[40.779852,-74.225925],[40.779867,-74.225993],[40.779888,-74.226055],[40.779993,-74.226324],[40.780023,-74.226403]]},
+{n:"Central Avenue",a:"CEN2",g:[[40.769574,-74.243029],[40.769503,-74.242884],[40.769262,-74.242404],[40.769138,-74.242133]]},
+{n:"Central Avenue",a:"CEN2",g:[[40.765611,-74.232065],[40.765633,-74.232253],[40.765683,-74.232473],[40.765746,-74.232667],[40.765837,-74.232897],[40.76611,-74.233593],[40.766127,-74.233634],[40.766199,-74.23381],[40.766275,-74.233994],[40.766508,-74.23456],[40.766667,-74.234946]]},
+{n:"Columbia Street",a:"COL",g:[[40.770422,-74.235461],[40.77039,-74.235225],[40.770329,-74.234968],[40.769825,-74.233857],[40.769506,-74.232963]]},
+{n:"Chapel Street",a:"CHAP",g:[[40.777269,-74.233189],[40.777348,-74.233138],[40.778826,-74.23182],[40.778925,-74.231732]]},
+{n:"Parrow Street",a:"PARR",g:[[40.766233,-74.224754],[40.766771,-74.226187],[40.766858,-74.226399],[40.767343,-74.227529],[40.768338,-74.230044]]},
+{n:"East Clark Circle",a:"CLA2",g:[[40.75776,-74.252197],[40.757878,-74.252102]]},
+{n:"Reynolds Street",a:"REY",g:[[40.763014,-74.231178],[40.763167,-74.231688],[40.763402,-74.232242],[40.763494,-74.232477],[40.763675,-74.23294],[40.763925,-74.233598]]},
+{n:"Kenilworth Place",a:"KEN",g:[[40.765911,-74.223174],[40.766035,-74.223098],[40.766079,-74.223071]]},
+{n:"Central Place",a:"CEN4",g:[[40.766858,-74.226399],[40.766599,-74.226584],[40.766572,-74.226603],[40.766379,-74.22674],[40.766299,-74.226816],[40.765735,-74.227353]]},
+{n:"Kirke Street",a:"KIR",g:[[40.769933,-74.239822],[40.76967,-74.240054],[40.769497,-74.240207],[40.769461,-74.240238],[40.769348,-74.240337]]},
+{n:"Keasbey Road",a:"KEA",g:[[40.756033,-74.246762],[40.755524,-74.247173],[40.755427,-74.247273],[40.755311,-74.247439],[40.755177,-74.247559],[40.755176,-74.24756]]},
+{n:"Snyder Street",a:"SNY",g:[[40.773712,-74.223703],[40.774042,-74.224314],[40.774998,-74.226076],[40.775657,-74.227262]]},
+{n:"Burnside Place",a:"BURN",g:[[40.785886,-74.224108],[40.786346,-74.224868]]},
+{n:"East Clark Place",a:"CLA3",g:[[40.757129,-74.252707],[40.757131,-74.252705],[40.75776,-74.252197]]},
+{n:"Reynolds Terrace",a:"REYN",g:[[40.763709,-74.233734],[40.763936,-74.234299],[40.764019,-74.234498],[40.764148,-74.234822],[40.764323,-74.235248],[40.76445,-74.235554],[40.76448,-74.23563],[40.76465,-74.236065],[40.764784,-74.236407],[40.765092,-74.237195]]},
+{n:"Spring Street",a:"SPR",g:[[40.778221,-74.236052],[40.778533,-74.235825],[40.778707,-74.235696],[40.778825,-74.235607],[40.779586,-74.235037],[40.779665,-74.234978]]},
+{n:"Meade Street",a:"MEA",g:[[40.784687,-74.226686],[40.784745,-74.226622],[40.78602,-74.225229]]},
+{n:"Laurel Street",a:"LAU",g:[[40.759594,-74.246445],[40.759853,-74.246942],[40.760375,-74.24794]]},
+{n:"Russ Monica Court",a:"RUS",g:[[40.763961,-74.226812],[40.763576,-74.226163],[40.763548,-74.226015]]},
+{n:"Brook Alley",a:"BRO",g:[[40.770482,-74.227039],[40.770995,-74.226667]]},
+{n:"Stetson Street",a:"STET",g:[[40.766976,-74.242767],[40.766987,-74.242787],[40.767038,-74.242879],[40.767074,-74.242943],[40.76726,-74.243281]]},
+{n:"Mount Vernon Avenue",a:"VERN",g:[[40.778925,-74.231732],[40.779032,-74.231633],[40.779398,-74.231333],[40.779557,-74.231201],[40.77964,-74.231136],[40.780357,-74.230566],[40.78063,-74.23033],[40.781389,-74.229707]]},
+{n:"Oakwood Place",a:"OAKW",g:[[40.763646,-74.228221],[40.764943,-74.227009],[40.765157,-74.22681],[40.76536,-74.22662]]},
+{n:"Webster Place",a:"WEB",g:[[40.76578,-74.223301],[40.765836,-74.223464],[40.766327,-74.224673]]},
+{n:"Seven Oaks Road Court",a:"SEV",g:[[40.759375,-74.236437],[40.759124,-74.236159]]},
+{n:"Lakeside Avenue",a:"LAK",g:[[40.779769,-74.22658],[40.780484,-74.227964],[40.780498,-74.22799],[40.780542,-74.228074],[40.780589,-74.228162],[40.780603,-74.228192],[40.780712,-74.228416],[40.780757,-74.228501],[40.780872,-74.228722],[40.780913,-74.228798],[40.780933,-74.228837],[40.780951,-74.228871],[40.781127,-74.229208],[40.781389,-74.229707],[40.781452,-74.229834],[40.781604,-74.230141],[40.781756,-74.230448],[40.781949,-74.230837],[40.78195,-74.23084]]},
+{n:"Beechwood",a:"BEE",g:[[40.755723,-74.241417],[40.756214,-74.242322]]},
+{n:"Parkinson Terrace",a:"PAR4",g:[[40.780357,-74.230566],[40.779966,-74.229726],[40.779618,-74.22898],[40.7796,-74.22894],[40.779564,-74.228864]]},
+{n:"Canfield Street",a:"CAN",g:[[40.771197,-74.227173],[40.771696,-74.226827],[40.771838,-74.226729],[40.771894,-74.226691],[40.772031,-74.226596],[40.7724,-74.226341]]},
+{n:"Nassau Street",a:"NASS",g:[[40.764071,-74.246476],[40.764134,-74.246612],[40.764208,-74.24677],[40.764443,-74.247277],[40.764744,-74.247924],[40.765023,-74.248523],[40.765253,-74.249019],[40.765341,-74.249208],[40.76545,-74.249442],[40.765497,-74.249544],[40.7659,-74.25041]]},
+{n:"Fairview Avenue",a:"FAI",g:[[40.760859,-74.240555],[40.762045,-74.242427],[40.7626,-74.243303]]},
+{n:"Fairview Avenue",a:"FAI",g:[[40.76252,-74.243388],[40.762843,-74.243889],[40.762923,-74.244014],[40.764131,-74.245806]]},
+{n:"Christopher Street",a:"CHRI",g:[[40.762299,-74.247627],[40.762415,-74.247884],[40.762744,-74.248606],[40.76278,-74.248681],[40.763514,-74.250236]]},
+{n:"Forest Street",a:"FOR",g:[[40.76474,-74.245262],[40.764778,-74.245322],[40.764819,-74.245387],[40.764884,-74.245536],[40.764909,-74.245676]]},
+{n:"Forest Street",a:"FOR",g:[[40.765174,-74.246329],[40.765554,-74.247251],[40.765581,-74.247303],[40.765729,-74.247583],[40.766106,-74.248301],[40.766232,-74.248534]]},
+{n:"Tremont Court",a:"TREM",g:[[40.755153,-74.237141],[40.754516,-74.237684],[40.754503,-74.237746],[40.754873,-74.238592]]},
+{n:"Morrow Street",a:"MORR",g:[[40.763957,-74.247973],[40.764157,-74.248385]]},
+{n:"North Jefferson Street",a:"JEFF",g:[[40.77563,-74.237313],[40.775961,-74.237041],[40.776149,-74.236894],[40.776325,-74.236789],[40.776937,-74.236457],[40.77724,-74.236284],[40.777451,-74.236172],[40.778143,-74.235791]]},
+{n:"Olcott Street",a:"OLC",g:[[40.763167,-74.231688],[40.761735,-74.23236],[40.760987,-74.232729],[40.760331,-74.233049],[40.759961,-74.233258]]},
+{n:"Alden Street",a:"ALD",g:[[40.780138,-74.223956],[40.780638,-74.224983]]},
+{n:"Seven Oaks Road",a:"SEVE",g:[[40.760892,-74.235793],[40.760596,-74.235903],[40.760468,-74.235944],[40.760293,-74.235984],[40.760147,-74.236019],[40.759954,-74.236107],[40.759706,-74.236228],[40.759503,-74.236343],[40.759375,-74.236437],[40.759319,-74.236558],[40.75931,-74.2367],[40.759402,-74.237316],[40.759557,-74.238039],[40.759802,-74.238654],[40.760083,-74.239092],[40.760236,-74.239198],[40.760371,-74.239233],[40.760516,-74.239185],[40.761118,-74.238635],[40.761346,-74.238395],[40.761998,-74.237595]]},
+{n:"Summer Street",a:"SUM",g:[[40.77785,-74.234832],[40.77792,-74.234781],[40.778941,-74.234026],[40.77957,-74.233556],[40.779674,-74.233478]]},
+{n:"Argyle Avenue",a:"ARG",g:[[40.758457,-74.251015],[40.75905,-74.252821],[40.759565,-74.254362]]},
+{n:"South Main Street",a:"MAIN",g:[[40.770372,-74.22593],[40.770264,-74.225736]]},
+{n:"South Main Street",a:"MAIN",g:[[40.768939,-74.222944],[40.768942,-74.223185],[40.769054,-74.223468]]},
+{n:"Maryland Street",a:"MAR",g:[[40.772149,-74.235515],[40.772231,-74.235639],[40.772333,-74.235791],[40.772408,-74.235958],[40.772436,-74.236054],[40.772521,-74.236346],[40.772765,-74.23713]]},
+{n:"Clarendon Place",a:"CLA4",g:[[40.764261,-74.238129],[40.764703,-74.238997],[40.764795,-74.239178],[40.764893,-74.23937],[40.765139,-74.239854],[40.765383,-74.240335],[40.765423,-74.240411]]},
+{n:"Mountainview Avenue",a:"MOU",g:[[40.763297,-74.242573],[40.764614,-74.244547],[40.764956,-74.245059]]},
+{n:"Scotland Road",a:"SCO",g:[[40.772069,-74.235629],[40.771499,-74.236368]]},
+{n:"Scotland Road",a:"SCO",g:[[40.771499,-74.236368],[40.771199,-74.236826]]},
+{n:"Scotland Road",a:"SCO",g:[[40.771199,-74.236826],[40.770894,-74.23724]]},
+{n:"Scotland Road",a:"SCO",g:[[40.770894,-74.23724],[40.770802,-74.237358]]},
+{n:"Lincoln Avenue",a:"LIN",g:[[40.770923,-74.235031],[40.770496,-74.235397]]},
+{n:"Lincoln Avenue",a:"LIN",g:[[40.770496,-74.235397],[40.770422,-74.235461],[40.770097,-74.235728]]},
+{n:"South Essex Avenue",a:"ESS",g:[[40.770549,-74.232291],[40.770223,-74.232503]]},
+{n:"South Essex Avenue",a:"ESS",g:[[40.770169,-74.232535],[40.769956,-74.232672],[40.76968,-74.23285],[40.769506,-74.232963],[40.768931,-74.233337],[40.768853,-74.233416],[40.768364,-74.233919],[40.767491,-74.234746],[40.766898,-74.235308]]},
+{n:"South Day Street",a:"DAY2",g:[[40.770366,-74.231107],[40.769924,-74.231387]]},
+{n:"South Day Street",a:"DAY2",g:[[40.769796,-74.231476],[40.769421,-74.231733],[40.769401,-74.231747],[40.769204,-74.231881],[40.768521,-74.23235],[40.768351,-74.232456],[40.767917,-74.232748]]},
+{n:"South Center Street",a:"CEN",g:[[40.769166,-74.229625],[40.769706,-74.229371]]},
+{n:"South Center Street",a:"CEN",g:[[40.769706,-74.229371],[40.769812,-74.229326]]},
+{n:"Milligan Alley",a:"MIL",g:[[40.769718,-74.227731],[40.769286,-74.227992]]},
+{n:"Hickory Street",a:"HIC",g:[[40.768087,-74.226875],[40.767685,-74.227217]]},
+{n:"Hickory Street",a:"HIC",g:[[40.764466,-74.229649],[40.764651,-74.229491],[40.765454,-74.228801],[40.766098,-74.228381],[40.766705,-74.227958],[40.766747,-74.227929],[40.767343,-74.227529]]},
+{n:"Oakwood Avenue",a:"OAK",g:[[40.767052,-74.224091],[40.76653,-74.224512]]},
+{n:"Oakwood Avenue",a:"OAK",g:[[40.766436,-74.224582],[40.766395,-74.224617],[40.766327,-74.224673],[40.766233,-74.224754],[40.765946,-74.22499],[40.765822,-74.225094],[40.76564,-74.225247],[40.765416,-74.225435],[40.765067,-74.225726],[40.76493,-74.22584],[40.764826,-74.225922],[40.764747,-74.226003],[40.764691,-74.226061],[40.764615,-74.226138],[40.764331,-74.226429],[40.763961,-74.226812],[40.763487,-74.227282],[40.763258,-74.227509],[40.76317,-74.227594],[40.762482,-74.228261],[40.762303,-74.228433],[40.762141,-74.228591],[40.761807,-74.228912],[40.76155,-74.229147],[40.761332,-74.229344],[40.760982,-74.229632],[40.760818,-74.229782],[40.760273,-74.230281],[40.759847,-74.230666],[40.759592,-74.230907],[40.759064,-74.231389]]},
+{n:"Main Street",a:"MAI",g:[[40.773964,-74.234123],[40.774213,-74.234611],[40.774309,-74.234801],[40.774395,-74.234971],[40.774513,-74.235202],[40.774776,-74.235655],[40.775102,-74.236285],[40.775247,-74.236569],[40.775343,-74.236755],[40.77563,-74.237313],[40.775836,-74.237708],[40.776063,-74.238147],[40.776128,-74.238266]]},
+{n:"Renna Plaza",a:"REN",g:[[40.778509,-74.236991],[40.778509,-74.236988]]},
+{n:"South Jefferson Street",a:"JEF",g:[[40.772527,-74.239597],[40.772129,-74.239879]]},
+{n:"South Jefferson Street",a:"JEF",g:[[40.772129,-74.239879],[40.771897,-74.24003],[40.771301,-74.240464],[40.769931,-74.241433],[40.769528,-74.241789],[40.769138,-74.242133]]},
+{n:"Thomas Boulevard",a:"THO",g:[[40.78239,-74.220832],[40.782302,-74.220843],[40.782212,-74.220858],[40.782104,-74.220878],[40.782029,-74.220896],[40.781639,-74.221007]]},
+{n:"Crane Street",a:"CRA",g:[[40.770711,-74.232363],[40.770764,-74.232652],[40.770805,-74.232836],[40.770884,-74.233098],[40.770974,-74.233357],[40.771029,-74.233499],[40.771079,-74.23363],[40.771515,-74.234533]]},
+{n:"South Street",a:"SOU",g:[[40.768497,-74.228788],[40.76757,-74.227315],[40.767138,-74.226644],[40.766963,-74.226312],[40.766806,-74.225924],[40.76663,-74.225363],[40.766462,-74.224684],[40.766436,-74.224582]]},
+{n:"McChesney Street",a:"MCC",g:[[40.762889,-74.247169],[40.763128,-74.247696],[40.763374,-74.248236],[40.763525,-74.248567],[40.763887,-74.249355],[40.764134,-74.249882]]},
+{n:"High Street",a:"HIGH",g:[[40.778435,-74.229774],[40.778721,-74.229542],[40.779369,-74.229021]]},
+{n:"Main Street",a:"MAI",g:[[40.772689,-74.230916],[40.772882,-74.231461],[40.773008,-74.231804],[40.773051,-74.231916]]},
+{n:"Park Avenue",a:"PAR5",g:[[40.778925,-74.231732],[40.779179,-74.232326],[40.779494,-74.233064],[40.779674,-74.233478],[40.7797,-74.233536],[40.779825,-74.23383],[40.780063,-74.234385]]},
+{n:"South Day Street",a:"DAY2",g:[[40.771077,-74.230583],[40.770876,-74.230745],[40.770683,-74.230903],[40.770467,-74.231046],[40.770366,-74.231107]]},
+{n:"Central Avenue",a:"CEN2",g:[[40.762781,-74.22669],[40.762991,-74.227053],[40.76312,-74.227282],[40.763258,-74.227509],[40.763646,-74.228221],[40.764063,-74.228946],[40.764272,-74.22931],[40.764466,-74.229649],[40.765032,-74.230628],[40.765083,-74.230715],[40.765247,-74.230993],[40.765352,-74.231171],[40.765425,-74.231295],[40.765525,-74.231486],[40.765563,-74.231602],[40.76558,-74.231701],[40.765598,-74.231865],[40.765611,-74.232065]]},
+{n:"Central Avenue",a:"CEN2",g:[[40.768185,-74.240286],[40.768122,-74.240186],[40.768076,-74.240115],[40.767929,-74.239882],[40.767204,-74.23874],[40.767162,-74.238673]]},
+{n:"Central Avenue",a:"CEN2",g:[[40.767162,-74.238673],[40.767115,-74.238604],[40.766,-74.236925],[40.765949,-74.236823]]},
+{n:"Dodd Street",a:"DOD",g:[[40.78239,-74.220832],[40.782431,-74.221118],[40.782513,-74.221699],[40.782519,-74.221757],[40.782522,-74.221818],[40.78252,-74.22188],[40.782515,-74.221958],[40.782497,-74.222057],[40.782359,-74.222598],[40.782297,-74.222843],[40.782277,-74.222932],[40.782275,-74.223003],[40.782281,-74.223076],[40.782298,-74.223158],[40.782499,-74.223834],[40.782617,-74.224208],[40.782667,-74.224301],[40.78271,-74.224361]]},
+{n:"Henry Street",a:"HEN",g:[[40.767917,-74.232748],[40.768364,-74.233919],[40.768959,-74.235477],[40.769106,-74.235808],[40.769443,-74.236373]]},
+{n:"Lincoln Avenue",a:"LIN",g:[[40.769443,-74.236373],[40.768801,-74.237025],[40.76823,-74.237596],[40.767866,-74.237963],[40.767239,-74.238596],[40.767162,-74.238673]]},
+{n:"Scotland Road",a:"SCO",g:[[40.76114,-74.247564],[40.761102,-74.247582],[40.760785,-74.247738],[40.760593,-74.247833],[40.760375,-74.24794],[40.760219,-74.248019],[40.759764,-74.248235],[40.759566,-74.248328],[40.759071,-74.248573],[40.75882,-74.248695],[40.758665,-74.24877],[40.758475,-74.248862],[40.758388,-74.248905],[40.758346,-74.248925],[40.758219,-74.248987],[40.757831,-74.249175],[40.757472,-74.24935],[40.756913,-74.249622],[40.75689,-74.249633],[40.756655,-74.249748],[40.75663,-74.249759],[40.756569,-74.249786]]},
+{n:"Scotland Road",a:"SCO",g:[[40.756308,-74.249902],[40.756151,-74.249972]]},
+{n:"Springdale Avenue",a:"SPRI",g:[[40.781639,-74.221007],[40.781534,-74.221008],[40.781486,-74.221011],[40.781442,-74.221018],[40.781074,-74.221124],[40.781043,-74.22113],[40.781008,-74.221128],[40.780901,-74.221117]]},
+{n:"Tremont Avenue",a:"TRE2",g:[[40.754959,-74.236721],[40.755153,-74.237141],[40.755525,-74.237975],[40.755669,-74.238297],[40.75602,-74.239083],[40.756407,-74.239837],[40.756525,-74.240038],[40.756642,-74.240198],[40.756832,-74.240367],[40.756981,-74.240466],[40.757199,-74.240625],[40.757341,-74.24081],[40.757641,-74.241273],[40.758429,-74.24251],[40.758464,-74.242561],[40.758914,-74.243225],[40.75949,-74.244174],[40.759969,-74.245143],[40.760267,-74.245744],[40.760478,-74.246211],[40.760752,-74.246816],[40.761102,-74.247582]]},
+{n:"Tremont Avenue",a:"TRE2",g:[[40.754538,-74.235832],[40.754557,-74.235876]]},
+{n:"Washington Street",a:"WAS",g:[[40.780211,-74.223704],[40.779949,-74.223539],[40.779421,-74.223205]]},
+{n:"Washington Street",a:"WAS",g:[[40.780211,-74.223704],[40.78038,-74.223808]]},
+{n:"Washington Street",a:"WAS",g:[[40.78271,-74.224361],[40.782871,-74.224507],[40.782956,-74.224584],[40.78305,-74.224677],[40.783146,-74.224776],[40.783186,-74.224829],[40.783242,-74.224917],[40.783326,-74.225073],[40.783447,-74.225285],[40.783564,-74.225516],[40.783609,-74.225601]]},
+{n:"William Street",a:"WILL",g:[[40.769144,-74.220371],[40.769216,-74.220521]]},
+{n:"Chestnut Street",a:"CHE",g:[[40.760999,-74.252851],[40.761035,-74.252974]]},
+{n:"Maryland Street",a:"MAR",g:[[40.772521,-74.236346],[40.772241,-74.2365],[40.772003,-74.236642]]},
+{n:"Seven Oaks Way",a:"SEV2",g:[[40.76465,-74.236065],[40.763878,-74.236628],[40.763831,-74.236674]]},
+{n:"Alden Place",a:"ALDE",g:[[40.780621,-74.226012],[40.780614,-74.225922],[40.780606,-74.225817],[40.780602,-74.225718],[40.7806,-74.225426],[40.7806,-74.225301],[40.780603,-74.225119],[40.780608,-74.225077],[40.780622,-74.225028],[40.780638,-74.224983]]},
+{n:"Collins Street",a:"COLL",g:[[40.768731,-74.227401],[40.768941,-74.227108]]},
+{n:"South Main Street",a:"MAIN",g:[[40.770904,-74.226456],[40.770676,-74.226395],[40.770638,-74.226385],[40.770372,-74.22593]]},
+{n:"Dodd Street",a:"DOD",g:[[40.782358,-74.220591],[40.782372,-74.220699]]},
+{n:"Springdale Avenue",a:"SPRI",g:[[40.780797,-74.221101],[40.780901,-74.221117]]},
+{n:"Thomas Boulevard",a:"THO",g:[[40.780057,-74.222366],[40.780174,-74.222193]]},
+{n:"Thomas Boulevard",a:"THO",g:[[40.780174,-74.222193],[40.78036,-74.221913],[40.780392,-74.221864],[40.780677,-74.221435],[40.780901,-74.221117]]},
+{n:"Thomas Boulevard",a:"THO",g:[[40.780901,-74.221117],[40.780942,-74.221079],[40.780983,-74.221055],[40.781023,-74.221038],[40.78114,-74.221006],[40.781852,-74.220804]]},
+{n:"Washington Street",a:"WAS",g:[[40.783609,-74.225601],[40.783644,-74.225669],[40.78366,-74.2257],[40.783712,-74.225789],[40.783766,-74.225869],[40.783813,-74.225928],[40.783865,-74.22598],[40.783919,-74.226029],[40.784036,-74.22613],[40.784239,-74.226303],[40.784612,-74.226632],[40.784687,-74.226686],[40.784695,-74.226692]]},
+{n:"Carroll Street",a:"CARR",g:[[40.786501,-74.22191],[40.78648,-74.221946],[40.786451,-74.221969],[40.786414,-74.221979],[40.78621,-74.221999],[40.786023,-74.222017],[40.785983,-74.222019],[40.785944,-74.222016],[40.785903,-74.221999]]},
+{n:"Carroll Street",a:"CARR",g:[[40.786399,-74.220254],[40.786453,-74.220933],[40.78646,-74.221029],[40.786521,-74.221762],[40.786522,-74.221814],[40.786516,-74.221867],[40.786501,-74.22191]]},
+{n:"Burnside Street",a:"BUR",g:[[40.785959,-74.224029],[40.786075,-74.223904],[40.78631,-74.223654],[40.786333,-74.223633],[40.786363,-74.223613],[40.78687,-74.223347],[40.786901,-74.223333],[40.786933,-74.223323],[40.787271,-74.223248],[40.787301,-74.223236],[40.787325,-74.223213],[40.787343,-74.223185],[40.787353,-74.223145],[40.787352,-74.223099],[40.787228,-74.221985],[40.787206,-74.221733]]},
+{n:"Burnside Street",a:"BUR",g:[[40.787206,-74.221733],[40.787083,-74.22016],[40.787023,-74.219327]]},
+{n:"Thomas Boulevard",a:"THO",g:[[40.783421,-74.220581],[40.7843,-74.220484],[40.784403,-74.220471],[40.784513,-74.220452],[40.784619,-74.220433],[40.785191,-74.220332]]},
+{n:"Dodd Street",a:"DOD",g:[[40.782372,-74.220699],[40.78239,-74.220832]]},
+{n:"Thomas Boulevard",a:"THO",g:[[40.786748,-74.218994],[40.786019,-74.21999]]},
+{n:"Thomas Boulevard",a:"THO",g:[[40.78572,-74.2203],[40.785658,-74.22034],[40.785598,-74.220372],[40.78559,-74.220375],[40.785541,-74.220396],[40.785496,-74.220411],[40.785439,-74.220424],[40.785385,-74.220435],[40.784633,-74.220567],[40.784526,-74.220585],[40.784415,-74.220604],[40.784309,-74.220618],[40.783075,-74.220756],[40.782885,-74.220777]]},
+{n:"Hayward Street",a:"HAY",g:[[40.78572,-74.2203],[40.785843,-74.221852],[40.785853,-74.221908],[40.785871,-74.221966],[40.785903,-74.221999]]},
+{n:"White Street",a:"WHI",g:[[40.778509,-74.236988],[40.77851,-74.236989]]},
+{n:"Cleveland Street",a:"CLE",g:[[40.782871,-74.224507],[40.782819,-74.224566],[40.781934,-74.225148],[40.781085,-74.225713],[40.781027,-74.225752]]},
+{n:"Bell Street",a:"BEL",g:[[40.774776,-74.235655],[40.774107,-74.236145],[40.773916,-74.236286],[40.773575,-74.236536],[40.773272,-74.236758],[40.773076,-74.236902],[40.772765,-74.23713],[40.772506,-74.23732]]},
+{n:"South Jefferson Street",a:"JEF",g:[[40.769138,-74.242133],[40.768133,-74.242901]]},
+{n:"Valley Street",a:"VALL",g:[[40.767255,-74.24758],[40.767151,-74.247677],[40.766232,-74.248534]]},
+{n:"Forest Street",a:"FOR",g:[[40.766232,-74.248534],[40.76651,-74.249058],[40.766817,-74.249635]]},
+{n:"Wilson Place",a:"WIL",g:[[40.765735,-74.227353],[40.765451,-74.226797],[40.76536,-74.22662]]},
+{n:"Hickory Street",a:"HIC",g:[[40.763014,-74.231178],[40.764401,-74.229717],[40.764466,-74.229649]]},
+{n:"Hickory Street",a:"HIC",g:[[40.767685,-74.227217],[40.76757,-74.227315],[40.767343,-74.227529]]},
+{n:"Frankfort Street",a:"FRA",g:[[40.769851,-74.238691],[40.769682,-74.238427],[40.769222,-74.237736],[40.769134,-74.237588],[40.768901,-74.237194],[40.768801,-74.237025]]},
+{n:"Main Street",a:"MAI",g:[[40.772199,-74.229665],[40.772236,-74.229757],[40.772511,-74.230452],[40.772689,-74.230916]]},
+{n:"South Essex Avenue",a:"ESS",g:[[40.771837,-74.231516],[40.771735,-74.231627],[40.771538,-74.231748],[40.771402,-74.231779]]},
+{n:"Hayward Street",a:"HAY",g:[[40.785637,-74.21931],[40.785708,-74.220157],[40.78572,-74.2203]]},
+{n:"Essex Freeway",a:"ESS2",g:[[40.76957,-74.229656],[40.769817,-74.230119],[40.769994,-74.230535],[40.770151,-74.230974]]},
+{n:"South Essex Avenue",a:"ESS",g:[[40.770702,-74.232184],[40.770549,-74.232291]]},
+{n:"South Essex Avenue",a:"ESS",g:[[40.770223,-74.232503],[40.770169,-74.232535]]},
+{n:"Distributor Road",a:"DIS",g:[[40.769812,-74.229326],[40.769849,-74.229392],[40.769926,-74.229533],[40.770119,-74.229946],[40.770316,-74.230472],[40.770467,-74.231046],[40.770536,-74.231282],[40.77069,-74.232119],[40.770702,-74.232184]]},
+{n:"South Center Street",a:"CEN",g:[[40.752446,-74.238113],[40.753123,-74.237575],[40.754662,-74.236354],[40.754744,-74.236284]]},
+{n:"William Street",a:"WILL",g:[[40.769216,-74.220521],[40.769834,-74.222088],[40.770729,-74.223643],[40.770772,-74.223716],[40.771006,-74.224108],[40.771375,-74.224729]]},
+{n:"Central Place",a:"CEN4",g:[[40.765735,-74.227353],[40.764063,-74.228946]]},
+{n:"Mechanic Street",a:"MEC",g:[[40.770097,-74.235728],[40.770585,-74.236689],[40.770666,-74.236894],[40.770748,-74.237152],[40.770802,-74.237358]]},
+{n:"Lincoln Avenue",a:"LIN",g:[[40.770097,-74.235728],[40.76979,-74.236031],[40.769715,-74.236105],[40.769443,-74.236373]]},
+{n:"South Center Street",a:"CEN",g:[[40.770766,-74.228901],[40.770942,-74.228819],[40.771097,-74.228749],[40.771251,-74.228677],[40.771595,-74.228517],[40.771601,-74.228512],[40.771712,-74.228437]]},
+{n:"Park Avenue",a:"PAR5",g:[[40.775249,-74.2235],[40.77525,-74.223502],[40.775455,-74.223961],[40.775734,-74.224586],[40.775865,-74.224879],[40.776003,-74.225189],[40.776164,-74.225549],[40.776448,-74.226185]]},
+{n:"Alden Street",a:"ALD",g:[[40.780638,-74.224983],[40.780988,-74.225675],[40.781027,-74.225752],[40.781061,-74.225821],[40.781163,-74.226013],[40.781656,-74.227016],[40.781671,-74.227046],[40.781715,-74.227131],[40.781756,-74.227211],[40.781774,-74.227246],[40.782147,-74.227997],[40.782423,-74.228566],[40.782481,-74.228679],[40.782587,-74.228905],[40.782614,-74.22896],[40.782961,-74.229659]]},
+{n:"South Essex Avenue",a:"ESS",g:[[40.771402,-74.231779],[40.77132,-74.231818],[40.770896,-74.232066]]},
+{n:"South Main Street",a:"MAIN",g:[[40.770264,-74.225736],[40.770042,-74.225339],[40.769967,-74.225194],[40.769724,-74.224735],[40.769609,-74.224517],[40.769054,-74.223468]]},
+{n:"High Street",a:"HIGH",g:[[40.774166,-74.233209],[40.774334,-74.233075],[40.774347,-74.233064],[40.774439,-74.232991],[40.774586,-74.232874],[40.774593,-74.232868],[40.77463,-74.232838],[40.775069,-74.232485],[40.775087,-74.23247],[40.775398,-74.232219],[40.775447,-74.232179],[40.775657,-74.232011],[40.775921,-74.231798],[40.776214,-74.231562],[40.776436,-74.231383],[40.776492,-74.231337]]},
+{n:"North Essex Avenue",a:"ESSE",g:[[40.77359,-74.230272],[40.77368,-74.230203],[40.773739,-74.230161],[40.775404,-74.228967]]},
+{n:"Hill Street",a:"HILL",g:[[40.768941,-74.227108],[40.76924,-74.22786],[40.769286,-74.227992],[40.769477,-74.228533]]},
+{n:"Milligan Alley",a:"MIL",g:[[40.768941,-74.227108],[40.769267,-74.226902]]},
+{n:"South Harrison Street",a:"HARR",g:[[40.756622,-74.233369],[40.756615,-74.233385]]},
+{n:"Essex Freeway",a:"ESS2",g:[[40.771038,-74.236641],[40.771162,-74.237111],[40.771263,-74.237436],[40.771437,-74.237891],[40.771636,-74.238347],[40.771977,-74.239046],[40.772278,-74.239506],[40.77285,-74.240167],[40.772919,-74.240222]]},
+{n:"Essex Freeway",a:"ESS2",g:[[40.772018,-74.239557],[40.771654,-74.23893],[40.771273,-74.237989],[40.771061,-74.237409]]},
+{n:"Essex Freeway",a:"ESS2",g:[[40.770637,-74.235125],[40.770306,-74.232314],[40.77023,-74.231872],[40.770137,-74.23147],[40.770042,-74.231112],[40.769872,-74.230611],[40.769695,-74.230231],[40.769114,-74.229217],[40.768257,-74.227796],[40.768038,-74.227464]]},
+{n:"Essex Freeway",a:"ESS2",g:[[40.767538,-74.22668],[40.767172,-74.225859],[40.766989,-74.225349],[40.766648,-74.223901],[40.766377,-74.222859],[40.766348,-74.222742]]},
+{n:"Essex Freeway",a:"ESS2",g:[[40.768038,-74.227464],[40.767655,-74.226884],[40.767538,-74.22668]]},
+{n:"Scotland Road",a:"SCO",g:[[40.770802,-74.237358],[40.770601,-74.237626],[40.770541,-74.237711]]},
+{n:"Scotland Road",a:"SCO",g:[[40.770541,-74.237711],[40.770466,-74.237819],[40.770438,-74.237857],[40.770148,-74.238269],[40.769851,-74.238691],[40.7695,-74.239202],[40.769305,-74.239466],[40.769066,-74.239805],[40.768781,-74.2402],[40.768731,-74.240269]]},
+{n:"Main Street",a:"MAI",g:[[40.770904,-74.226456],[40.770995,-74.226667],[40.771166,-74.227097],[40.771197,-74.227173]]},
+{n:"Essex Freeway",a:"ESS2",g:[[40.769394,-74.229346],[40.76957,-74.229656]]},
+{n:"Essex Freeway",a:"ESS2",g:[[40.767716,-74.226658],[40.768378,-74.22771],[40.769394,-74.229346]]},
+{n:"Essex Freeway",a:"ESS2",g:[[40.770269,-74.231392],[40.770349,-74.231764],[40.770434,-74.232251]]},
+{n:"Essex Freeway",a:"ESS2",g:[[40.770151,-74.230974],[40.770269,-74.231392]]},
+{n:"Essex Freeway",a:"ESS2",g:[[40.770475,-74.23254],[40.770732,-74.234704],[40.770851,-74.235686],[40.77092,-74.236103],[40.771038,-74.236641]]},
+{n:"Essex Freeway",a:"ESS2",g:[[40.770434,-74.232251],[40.770475,-74.23254]]},
+{n:"Essex Freeway",a:"ESS2",g:[[40.770671,-74.235465],[40.770637,-74.235125]]},
+{n:"Essex Freeway",a:"ESS2",g:[[40.771061,-74.237409],[40.770892,-74.236746],[40.770776,-74.236154],[40.770671,-74.235465]]},
+{n:"Essex Freeway",a:"ESS2",g:[[40.772326,-74.239928],[40.772018,-74.239557]]},
+{n:"Essex Freeway",a:"ESS2",g:[[40.772728,-74.240366],[40.772531,-74.240175],[40.772326,-74.239928]]},
+{n:"High Street",a:"HIGH",g:[[40.779369,-74.229021],[40.779564,-74.228864],[40.77976,-74.228708],[40.780481,-74.228125],[40.780542,-74.228074],[40.780596,-74.22803],[40.780976,-74.227722],[40.781657,-74.227177],[40.781715,-74.227131],[40.781775,-74.227082],[40.782514,-74.226484],[40.782892,-74.226178],[40.783455,-74.225722],[40.783545,-74.225652],[40.783609,-74.225601]]},
+{n:"Thomas Boulevard",a:"THO",g:[[40.785708,-74.220157],[40.785754,-74.220119],[40.785796,-74.220078],[40.785803,-74.22007],[40.785838,-74.220033],[40.785876,-74.219988],[40.786187,-74.219564],[40.786662,-74.218917]]},
+{n:"Thomas Boulevard",a:"THO",g:[[40.785191,-74.220332],[40.78538,-74.220299],[40.785439,-74.220285],[40.785498,-74.22027],[40.785558,-74.220245],[40.785618,-74.220213],[40.785666,-74.220186],[40.785708,-74.220157]]},
+{n:"Thomas Boulevard",a:"THO",g:[[40.782372,-74.220699],[40.783421,-74.220581]]},
+{n:"White Street",a:"WHI",g:[[40.776492,-74.231337],[40.77654,-74.231435],[40.776826,-74.232025],[40.776924,-74.232254],[40.777028,-74.232533],[40.777149,-74.232882],[40.777178,-74.232957],[40.7772,-74.233018],[40.777269,-74.233189],[40.77743,-74.233619],[40.777547,-74.233956],[40.77785,-74.234832],[40.777947,-74.235143],[40.778143,-74.235791],[40.778221,-74.236052],[40.778381,-74.236583],[40.778394,-74.236624],[40.778509,-74.236988]]},
+{n:"High Street",a:"HIGH",g:[[40.776492,-74.231337],[40.777083,-74.230861]]},
+{n:"Capuchin Way",a:"CAP",g:[[40.770169,-74.232535],[40.770113,-74.232313],[40.769796,-74.231476]]},
+{n:"South Day Street",a:"DAY2",g:[[40.769924,-74.231387],[40.769796,-74.231476]]},
+{n:"Thomas Boulevard",a:"THO",g:[[40.786019,-74.21999],[40.785904,-74.220135],[40.785858,-74.220184],[40.785836,-74.220205],[40.785811,-74.22023],[40.785759,-74.220273],[40.78572,-74.2203]]},
+{n:"Thomas Boulevard",a:"THO",g:[[40.782885,-74.220777],[40.782824,-74.220784],[40.782633,-74.220805],[40.78239,-74.220832]]},
+{n:"Thomas Boulevard",a:"THO",g:[[40.781852,-74.220804],[40.781896,-74.220791],[40.782006,-74.220766],[40.782116,-74.22074],[40.782231,-74.220718],[40.782372,-74.220699]]},
+{n:"Sylvan Way",a:"SYL",g:[[40.758308,-74.239012],[40.758035,-74.239203]]},
+{n:"High Street",a:"HIGH",g:[[40.777591,-74.230454],[40.778154,-74.230002]]},
+{n:"South Essex Avenue",a:"ESS",g:[[40.770896,-74.232066],[40.770752,-74.232153],[40.770702,-74.232184]]},
+{n:"Main Street",a:"MAI",g:[[40.771197,-74.227173],[40.771712,-74.228437],[40.772199,-74.229665]]},
+{n:"Central Avenue",a:"CEN2",g:[[40.768735,-74.241313],[40.768674,-74.24119],[40.76855,-74.240927],[40.7685,-74.240821],[40.768434,-74.240681]]},
+{n:"Central Avenue",a:"CEN2",g:[[40.768908,-74.241659],[40.768992,-74.241735],[40.769092,-74.241948],[40.769138,-74.242133]]},
+{n:"Central Avenue",a:"CEN2",g:[[40.769138,-74.242133],[40.769027,-74.241998],[40.76893,-74.24179],[40.768908,-74.241659]]},
+{n:"Joyce Street",a:"JOY",g:[[40.769066,-74.239805],[40.769076,-74.239826],[40.769123,-74.239915],[40.769348,-74.240337],[40.769542,-74.240702],[40.76957,-74.240753]]},
+{n:"Joyce Street",a:"JOY",g:[[40.76957,-74.240753],[40.769931,-74.241433]]},
+{n:"Mitchell Street",a:"MIT",g:[[40.767968,-74.242517],[40.768133,-74.242901]]},
+{n:"Stetson Street",a:"STET",g:[[40.767359,-74.243461],[40.767676,-74.244033]]},
+{n:"Stetson Street",a:"STET",g:[[40.76726,-74.243281],[40.767359,-74.243461]]},
+{n:"Freeman Street",a:"FRE",g:[[40.766255,-74.244583],[40.766171,-74.244512],[40.766076,-74.244352],[40.766058,-74.244256]]},
+{n:"Freeman Street",a:"FRE",g:[[40.76594,-74.244065],[40.765966,-74.244107],[40.766058,-74.244256]]},
+{n:"Freeman Street",a:"FRE",g:[[40.766058,-74.244256],[40.766129,-74.244309],[40.766219,-74.244463],[40.766255,-74.244583]]},
+{n:"Forest Street",a:"FOR",g:[[40.764909,-74.245676],[40.764843,-74.245571],[40.764776,-74.245415],[40.764758,-74.24534],[40.76474,-74.245262]]},
+{n:"Nassau Street",a:"NASS",g:[[40.763863,-74.246033],[40.763893,-74.246074],[40.763916,-74.246105],[40.764002,-74.246285],[40.764071,-74.246476]]},
+{n:"Nassau Street",a:"NASS",g:[[40.764071,-74.246476],[40.763962,-74.246312],[40.76388,-74.246141],[40.763872,-74.24609],[40.763863,-74.246033]]},
+{n:"McChesney Street",a:"MCC",g:[[40.762711,-74.246792],[40.76274,-74.246842],[40.762829,-74.246991],[40.762886,-74.247122],[40.762889,-74.247169]]},
+{n:"McChesney Street",a:"MCC",g:[[40.762889,-74.247169],[40.762852,-74.24715],[40.762788,-74.247017],[40.76273,-74.246847],[40.762711,-74.246792]]},
+{n:"Christopher Street",a:"CHRI",g:[[40.762127,-74.247247],[40.762235,-74.247444],[40.7623,-74.247586],[40.762299,-74.247627]]},
+{n:"Christopher Street",a:"CHRI",g:[[40.762066,-74.247116],[40.762098,-74.247186],[40.762127,-74.247247]]},
+{n:"Christopher Street",a:"CHRI",g:[[40.762299,-74.247627],[40.762268,-74.24761],[40.762202,-74.247474],[40.762127,-74.247247]]},
+{n:"Tremont Avenue",a:"TRE2",g:[[40.761392,-74.24836],[40.761456,-74.248533],[40.761773,-74.249452],[40.762062,-74.250229],[40.762079,-74.250274],[40.762314,-74.250906],[40.762419,-74.251175],[40.762508,-74.251429],[40.76255,-74.25156],[40.762564,-74.251734],[40.762564,-74.251864],[40.762564,-74.25196]]},
+{n:"Tremont Avenue",a:"TRE2",g:[[40.761274,-74.248047],[40.76134,-74.24816],[40.761392,-74.248313],[40.761392,-74.24836]]},
+{n:"Tremont Avenue",a:"TRE2",g:[[40.761392,-74.24836],[40.761362,-74.248336],[40.761305,-74.248176],[40.761274,-74.248047]]},
+{n:"Beach Street",a:"BEA",g:[[40.760219,-74.248019],[40.760241,-74.24809],[40.760404,-74.248605]]},
+{n:"Beach Street",a:"BEA",g:[[40.760404,-74.248605],[40.760497,-74.248825],[40.760551,-74.248992],[40.760569,-74.249126]]},
+{n:"Beach Street",a:"BEA",g:[[40.760569,-74.249126],[40.760514,-74.249016],[40.760459,-74.248844],[40.760404,-74.248605]]},
+{n:"Chestnut Street",a:"CHE",g:[[40.759566,-74.248328],[40.759588,-74.248399],[40.759846,-74.249211]]},
+{n:"Chestnut Street",a:"CHE",g:[[40.759846,-74.249211],[40.759902,-74.249317],[40.759953,-74.249479],[40.759974,-74.249615]]},
+{n:"Chestnut Street",a:"CHE",g:[[40.759974,-74.249615],[40.759916,-74.249514],[40.759863,-74.249344],[40.759846,-74.249211]]},
+{n:"Morris Street",a:"MOR",g:[[40.75882,-74.248695],[40.758842,-74.248764],[40.758928,-74.249037],[40.759128,-74.249676]]},
+{n:"Morris Street",a:"MOR",g:[[40.759128,-74.249676],[40.759215,-74.249858],[40.759272,-74.250033],[40.759314,-74.250269]]},
+{n:"Morris Street",a:"MOR",g:[[40.759314,-74.250269],[40.759227,-74.250061],[40.759175,-74.249898],[40.759128,-74.249676]]},
+{n:"Argyle Avenue",a:"ARG",g:[[40.757831,-74.249175],[40.757856,-74.249249],[40.758118,-74.250018],[40.758272,-74.250472]]},
+{n:"Argyle Avenue",a:"ARG",g:[[40.758272,-74.250472],[40.758337,-74.250576],[40.758399,-74.250729],[40.758457,-74.251015]]},
+{n:"Argyle Avenue",a:"ARG",g:[[40.758457,-74.251015],[40.75835,-74.250771],[40.758288,-74.250604],[40.758272,-74.250472]]},
+{n:"Cary Street",a:"CARY",g:[[40.770773,-74.239426],[40.770209,-74.238381],[40.770148,-74.238269]]},
+{n:"Cary Street",a:"CARY",g:[[40.770999,-74.239858],[40.770915,-74.239747],[40.770813,-74.239551],[40.770773,-74.239426]]},
+{n:"Cary Street",a:"CARY",g:[[40.770773,-74.239426],[40.77084,-74.239499],[40.770947,-74.239705],[40.770999,-74.239858]]},
+{n:"Glebe Street",a:"GLE",g:[[40.770802,-74.237358],[40.770837,-74.237492],[40.77093,-74.237775],[40.771021,-74.238004],[40.771129,-74.238254],[40.771199,-74.238413]]},
+{n:"Glebe Street",a:"GLE",g:[[40.771199,-74.238413],[40.771281,-74.238547],[40.771386,-74.23879],[40.771455,-74.239005]]},
+{n:"Glebe Street",a:"GLE",g:[[40.771455,-74.239005],[40.771354,-74.238838],[40.771256,-74.23861],[40.771199,-74.238413]]},
+{n:"Lincoln Avenue",a:"LIN",g:[[40.771748,-74.234335],[40.771515,-74.234533],[40.771462,-74.234578],[40.770923,-74.235031]]},
+{n:"Lincoln Avenue",a:"LIN",g:[[40.772073,-74.234103],[40.771892,-74.234257]]},
+{n:"Lincoln Avenue",a:"LIN",g:[[40.77188,-74.234182],[40.77207,-74.234024]]},
+{n:"Lincoln Avenue",a:"LIN",g:[[40.77207,-74.234024],[40.772111,-74.234026]]},
+{n:"Lincoln Avenue",a:"LIN",g:[[40.771748,-74.234335],[40.77188,-74.234182]]},
+{n:"Lincoln Avenue",a:"LIN",g:[[40.771892,-74.234257],[40.771748,-74.234335]]},
+{n:"Lincoln Avenue",a:"LIN",g:[[40.772111,-74.234026],[40.772073,-74.234103]]},
+{n:"South Essex Avenue",a:"ESS",g:[[40.771402,-74.231779],[40.771519,-74.231685],[40.771717,-74.231558],[40.771837,-74.231516]]},
+{n:"South Day Street",a:"DAY2",g:[[40.771449,-74.230258],[40.771077,-74.230583]]},
+{n:"South Center Street",a:"CEN",g:[[40.769812,-74.229326],[40.770249,-74.229139],[40.770361,-74.229087],[40.770441,-74.22905]]},
+{n:"South Center Street",a:"CEN",g:[[40.770441,-74.22905],[40.770766,-74.228901]]},
+{n:"Hickory Street",a:"HIC",g:[[40.768999,-74.226102],[40.768611,-74.226422],[40.768216,-74.22676],[40.768087,-74.226875]]},
+{n:"Hickory Street",a:"HIC",g:[[40.769223,-74.225895],[40.768999,-74.226102]]},
+{n:"Oakwood Avenue",a:"OAK",g:[[40.767496,-74.223744],[40.767202,-74.223967],[40.767162,-74.223996],[40.767052,-74.224091]]},
+{n:"Oakwood Avenue",a:"OAK",g:[[40.767974,-74.223366],[40.76788,-74.223483],[40.767743,-74.223592],[40.767496,-74.223744]]},
+{n:"Oakwood Avenue",a:"OAK",g:[[40.767496,-74.223744],[40.767715,-74.223534],[40.767854,-74.223425],[40.767974,-74.223366]]},
+{n:"Essex Freeway",a:"ESS2",g:[[40.766485,-74.222606],[40.766648,-74.223214],[40.767123,-74.225226],[40.767416,-74.226041],[40.767716,-74.226658]]},
+{n:"High Street",a:"HIGH",g:[[40.777083,-74.230861],[40.777591,-74.230454]]},
+{n:"Freeway Drive West",a:"FRE2",g:[[40.766811,-74.222289],[40.766816,-74.222321]]},
+{n:"North Day Street",a:"DAY",g:[[40.780138,-74.223956],[40.78016,-74.223933]]},
+{n:"Washington Street",a:"WAS",g:[[40.78038,-74.223808],[40.780695,-74.223996],[40.780763,-74.224034],[40.780834,-74.22405],[40.782204,-74.224279],[40.78252,-74.224327],[40.78271,-74.224361]]},
+{n:"North Day Street",a:"DAY",g:[[40.78016,-74.223933],[40.78017,-74.223916],[40.780176,-74.223906],[40.780189,-74.223867],[40.780197,-74.223828],[40.780211,-74.223704]]},
+{n:"High Street",a:"HIGH",g:[[40.77399,-74.233345],[40.774077,-74.233281],[40.774166,-74.233209]]},
+{n:"Scotland Road",a:"SCO",g:[[40.773714,-74.233617],[40.773639,-74.233708],[40.773383,-74.234018],[40.773351,-74.234057]]},
+{n:"Central Avenue",a:"CEN2",g:[[40.766667,-74.234946],[40.766739,-74.235203],[40.766775,-74.235451]]},
+{n:"Lincoln Avenue",a:"LIN",g:[[40.766464,-74.239365],[40.766406,-74.239424],[40.766356,-74.239474]]},
+{n:"Lincoln Avenue",a:"LIN",g:[[40.766356,-74.239474],[40.766312,-74.239515],[40.765739,-74.240105],[40.765632,-74.240209],[40.765423,-74.240411],[40.765276,-74.240554],[40.764568,-74.24124],[40.764534,-74.241275],[40.764439,-74.241375],[40.763749,-74.242098],[40.763695,-74.242155],[40.763372,-74.242494],[40.763297,-74.242573],[40.763154,-74.242723],[40.762957,-74.242929],[40.7626,-74.243303],[40.76252,-74.243388],[40.761812,-74.244131],[40.7612,-74.244772],[40.76118,-74.244794],[40.760267,-74.245744],[40.759594,-74.246445],[40.759057,-74.247004],[40.758549,-74.247533],[40.757956,-74.24815]]},
+{n:"South Essex Avenue",a:"ESS",g:[[40.766898,-74.235308],[40.766775,-74.235451]]},
+{n:"Central Avenue",a:"CEN2",g:[[40.766641,-74.235614],[40.766065,-74.236244],[40.765972,-74.236388],[40.765947,-74.236454]]},
+{n:"Central Avenue",a:"CEN2",g:[[40.766751,-74.235489],[40.766678,-74.235573],[40.766641,-74.235614]]},
+{n:"Park Avenue",a:"PAR5",g:[[40.778154,-74.230002],[40.778201,-74.230108],[40.778549,-74.230886]]},
+{n:"Park Avenue",a:"PAR5",g:[[40.777925,-74.22947],[40.778154,-74.230002]]},
+{n:"Park Avenue",a:"PAR5",g:[[40.776739,-74.226847],[40.776982,-74.227391],[40.777002,-74.227439],[40.777273,-74.228061]]},
+{n:"North Day Street",a:"DAY",g:[[40.776618,-74.226566],[40.776713,-74.226497],[40.777111,-74.226208],[40.777218,-74.226132],[40.777828,-74.225692],[40.778786,-74.224987],[40.778996,-74.224833],[40.779099,-74.224752],[40.779544,-74.224401],[40.780138,-74.223956]]},
+{n:"Park Avenue",a:"PAR5",g:[[40.776448,-74.226185],[40.776618,-74.226566]]},
+{n:"Park Avenue",a:"PAR5",g:[[40.776618,-74.226566],[40.776641,-74.226619],[40.776739,-74.226847]]},
+{n:"Central Avenue",a:"CEN2",g:[[40.768908,-74.241659],[40.768735,-74.241313]]},
+{n:"Central Avenue",a:"CEN2",g:[[40.768434,-74.240681],[40.768375,-74.240586],[40.768185,-74.240286]]},
+{n:"Main Street",a:"MAI",g:[[40.773714,-74.233617],[40.773795,-74.233779],[40.773854,-74.233897],[40.773964,-74.234123]]},
+{n:"Main Street",a:"MAI",g:[[40.773581,-74.233306],[40.773656,-74.233483],[40.773714,-74.233617]]},
+{n:"Park Avenue",a:"PAR5",g:[[40.77751,-74.228602],[40.777716,-74.228999],[40.777779,-74.229143],[40.777812,-74.229215],[40.777925,-74.22947]]},
+{n:"Park Avenue",a:"PAR5",g:[[40.777393,-74.228336],[40.77751,-74.228602]]},
+{n:"Park Avenue",a:"PAR5",g:[[40.777273,-74.228061],[40.777393,-74.228336]]},
+{n:"Central Avenue",a:"CEN2",g:[[40.765949,-74.236823],[40.765932,-74.236733],[40.765924,-74.236585],[40.765947,-74.236454]]},
+{n:"Park Avenue",a:"PAR5",g:[[40.778549,-74.230886],[40.77872,-74.231262]]},
+{n:"Park Avenue",a:"PAR5",g:[[40.77872,-74.231262],[40.778925,-74.231732]]},
+{n:"Main Street",a:"MAI",g:[[40.773051,-74.231916],[40.773092,-74.232029],[40.773421,-74.232931],[40.77356,-74.233257],[40.773581,-74.233306]]},
+{n:"Windsor Place",a:"WIN",g:[[40.769785,-74.226491],[40.769743,-74.226532]]},
+{n:"Windsor Place",a:"WIN",g:[[40.769831,-74.226448],[40.7698,-74.226478],[40.769785,-74.226491]]},
+{n:"Main Street",a:"MAI",g:[[40.768939,-74.222944],[40.769179,-74.22338],[40.769302,-74.223579],[40.769397,-74.223735],[40.769549,-74.223981],[40.769725,-74.224268],[40.770084,-74.224857],[40.770148,-74.224962],[40.770288,-74.225163],[40.770354,-74.225284],[40.77056,-74.225725],[40.770904,-74.226456]]},
+{n:"South Center Street",a:"CEN",g:[[40.755069,-74.236024],[40.755246,-74.235895],[40.755312,-74.235843],[40.755536,-74.235665],[40.755587,-74.235627],[40.755763,-74.235538]]},
+{n:"South Center Street",a:"CEN",g:[[40.754744,-74.236284],[40.75482,-74.236214],[40.755069,-74.236024]]},
+{n:"High Street",a:"HIGH",g:[[40.778154,-74.230002],[40.778435,-74.229774]]},
+{n:"Scotland Road",a:"SCO",g:[[40.768434,-74.240681],[40.768364,-74.240783],[40.768358,-74.240791],[40.768123,-74.241131]]},
+{n:"Scotland Road",a:"SCO",g:[[40.768731,-74.240269],[40.768511,-74.240575],[40.768434,-74.240681]]},
+{n:"Washington Street",a:"WAS",g:[[40.778092,-74.222449],[40.778093,-74.22245],[40.778469,-74.222667],[40.778517,-74.222695],[40.778798,-74.222857],[40.779421,-74.223205]]},
+{n:"Scotland Road",a:"SCO",g:[[40.768123,-74.241131],[40.767953,-74.241376],[40.767663,-74.241795],[40.767158,-74.242512],[40.766993,-74.242746],[40.766976,-74.242767],[40.766889,-74.242874],[40.766673,-74.243151],[40.766222,-74.243723],[40.766055,-74.243935],[40.76594,-74.244065],[40.765775,-74.244245],[40.7657,-74.244334],[40.765616,-74.244421],[40.765399,-74.244638],[40.765283,-74.244748],[40.764956,-74.245059],[40.76474,-74.245262],[40.764407,-74.245574],[40.764131,-74.245806],[40.763863,-74.246033],[40.763675,-74.24618],[40.763574,-74.246247],[40.763299,-74.246423],[40.762901,-74.246696],[40.762711,-74.246792],[40.762579,-74.246854],[40.762066,-74.247116],[40.761973,-74.247161],[40.761774,-74.247259],[40.76114,-74.247564]]},
+{n:"Tremont Avenue",a:"TRE2",g:[[40.761102,-74.247582],[40.761132,-74.247663],[40.761162,-74.247743],[40.761274,-74.248047]]},
+{n:"Main Street",a:"MAI",g:[[40.776128,-74.238266],[40.77624,-74.238492],[40.776285,-74.238577]]},
+{n:"Tremont Avenue",a:"TRE2",g:[[40.754557,-74.235876],[40.754703,-74.236204],[40.754744,-74.236284]]},
+{n:"Tremont Avenue",a:"TRE2",g:[[40.754744,-74.236284],[40.754808,-74.236396],[40.754959,-74.236721]]},
+{n:"South Center Street",a:"CEN",g:[[40.765822,-74.23188],[40.766097,-74.231652],[40.766241,-74.23153],[40.766359,-74.231429],[40.766473,-74.231324],[40.766893,-74.230936],[40.767034,-74.230831],[40.767151,-74.230744],[40.76747,-74.230513],[40.767528,-74.230471],[40.76765,-74.230385],[40.767744,-74.230338],[40.767778,-74.230321],[40.767902,-74.23026],[40.768338,-74.230044],[40.768597,-74.229925],[40.768839,-74.229814],[40.769064,-74.229679],[40.769166,-74.229625]]},
+{n:"Oakwood Avenue",a:"OAK",g:[[40.76653,-74.224512],[40.766436,-74.224582]]},
+{n:"South Street",a:"SOU",g:[[40.766436,-74.224582],[40.766414,-74.224487],[40.766079,-74.223071],[40.766072,-74.223038]]},
+{n:"Hill Street",a:"HILL",g:[[40.768611,-74.226422],[40.768651,-74.226503]]}];
+const STREETS = STREET_DATA.map(f=>({name:f.n, abbr:f.a, pts:f.g}));
+const STREET_NAMES=[...new Set(STREETS.map(s=>s.name))].sort();
+
+const SPECIES = ["Red Oak","Pin Oak","Norway Maple","Silver Maple","London Plane",
+  "American Elm","Honey Locust","Bradford Pear","Sweetgum","Cherry","Sugar Maple","Unknown"];
+const STATUS = ["Existing","Verified","Needs Review","New","Removed","Dead","Replacement Needed"];
+const STATUS_COLOR = {
+  "Existing":"#2f7d54","Verified":"#1f5136","Needs Review":"#c8811f","New":"#3f7fd6",
+  "Removed":"#8a8172","Dead":"#7a5c3a","Replacement Needed":"#a2492f","Unknown":"#8a8172"
+};
+const CONDITIONS = ["Good","Fair","Poor","Dead","Unknown"];
+
+/* Wards / voting districts. Orange runs North · South · East · West (same set the
+   Paving Program uses). No ward polygon exists in that app, so trees are assigned by
+   quadrant around the city centroid for now — drop in official voting-district
+   GeoJSON and swap assignWard() for a point-in-polygon test to make it authoritative. */
+const WARDS = ["North","South","East","West"];
+const WARD_COLOR = {North:"#4a7fb0", South:"#2f7d54", East:"#c8811f", West:"#9c5a3c"};
+function assignWard(lat,lng){
+  const dLat = lat - 40.76730;
+  const dLng = (lng - (-74.23905)) * Math.cos(40.76730*Math.PI/180);
+  if(Math.abs(dLat) >= Math.abs(dLng)) return dLat>=0 ? "North" : "South";
+  return dLng>=0 ? "East" : "West";
+}
+
+/* ---- 3. Helpers ---- */
+const $ = s => document.querySelector(s);
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),1900);}
+function rand(a,b){return a+Math.random()*(b-a);}
+function pick(a){return a[Math.floor(Math.random()*a.length)];}
+function lerp(p,q,t){return [p[0]+(q[0]-p[0])*t, p[1]+(q[1]-p[1])*t];}
+function metersPerDegLng(lat){return 111320*Math.cos(lat*Math.PI/180);}
+function distM(a,b){const dy=(a[0]-b[0])*111320, dx=(a[1]-b[1])*metersPerDegLng((a[0]+b[0])/2);return Math.hypot(dx,dy);}
+function nearestStreet(ll){
+  let best=STREETS[0], bd=1e18;
+  for(const s of STREETS){
+    const g=s.pts;
+    for(let k=0;k<g.length-1;k++){
+      const A=g[k],B=g[k+1];
+      const t=Math.max(0,Math.min(1,segT(ll,A,B)));
+      const proj=lerp(A,B,t);
+      const d=distM(ll,proj);
+      if(d<bd){bd=d;best=s;}
+    }
+  }
+  return best;
+}
+function segT(p,a,b){
+  const ax=a[1],ay=a[0],bx=b[1],by=b[0],px=p[1],py=p[0];
+  const dx=bx-ax,dy=by-ay;const L2=dx*dx+dy*dy;if(!L2)return 0;
+  return ((px-ax)*dx+(py-ay)*dy)/L2;
+}
+function maturity(canopyFt){
+  if(canopyFt<12)return "Young";
+  if(canopyFt<22)return "Semi-Mature";
+  if(canopyFt<34)return "Mature";
+  if(canopyFt<46)return "Large Mature";
+  return "Heritage";
+}
+function estHeight(canopyFt,sp){
+  // rough, species-flavored estimate — labelled as estimate everywhere
+  const base=canopyFt*rand(1.05,1.5);
+  const bump=/Oak|Plane|Elm|Sweetgum|Sugar/.test(sp)?rand(1.0,1.15):rand(.85,1.0);
+  return Math.round(base*bump);
+}
+function estDBH(canopyFt){ // very rough allometric proxy, inches
+  return Math.round(canopyFt*rand(0.55,0.85));
+}
+function canopyArea(d){return Math.round(Math.PI*Math.pow(d/2,2));}
+
+/* ---- 4. ID registry (permanent, survives deletes) ---- */
+const idCounters = {}; // abbr -> running number
+function nextId(abbr){
+  idCounters[abbr]=(idCounters[abbr]||0)+1;
+  return `ORG-${abbr}-${String(idCounters[abbr]).padStart(6,"0")}`;
+}
+
+/* ---- 5. Generate SAMPLE inventory along streets ---- */
+let TREES=[]; const ARCHIVE=[];
+function seedInventory(){
+  TREES=[]; ARCHIVE.length=0; for(const k in idCounters) delete idCounters[k];
+  const spacing=34;                              // metres between trees along a curb
+  for(const s of STREETS){
+    const g=s.pts;
+    for(let k=0;k<g.length-1;k++){
+      const A=g[k],B=g[k+1];
+      const len=distM(A,B); if(len<8) continue;
+      const perp=[(B[1]-A[1]), -(B[0]-A[0])];
+      const mag=Math.hypot(perp[0],perp[1])||1;
+      const steps=Math.max(1,Math.round(len/spacing));
+      for(let i=1;i<=steps;i++){
+        const c=lerp(A,B,(i-0.5)/steps);
+        for(const side of [-1,1]){
+          if(Math.random()<0.42) continue;         // realistic gaps
+          const off=0.00013*side;                  // ~14 m curb offset
+          const lat=c[0]+(perp[1]/mag)*off + rand(-0.00003,0.00003);
+          const lng=c[1]+(perp[0]/mag)*off + rand(-0.00003,0.00003);
+          makeTree([lat,lng],s,true);
+        }
+      }
+    }
+  }
+  toast(`Seeded ${TREES.length.toLocaleString()} sample trees on the Orange street grid`);
+}
+function makeTree(ll,street,seeded){
+  if(seeded && !inBoundary(ll)) return null;   // keep sample points tight inside Orange
+  street = street || nearestStreet(ll);
+  const canopy = +rand(8,52).toFixed(1);
+  const sp = pick(SPECIES);
+  const conf = Math.round(rand(52,94));
+  let status = "Existing";
+  if(conf<62) status="Needs Review";
+  else if(Math.random()<0.14) status="Verified";
+  if(!seeded){ status="New"; }
+  const t={
+    id: nextId(street.abbr),
+    street: street.name, abbr: street.abbr, ward: assignWard(ll[0],ll[1]),
+    lat: +ll[0].toFixed(6), lng:+ll[1].toFixed(6),
+    species: sp, speciesConf: conf,
+    canopy, canopyArea: canopyArea(canopy),
+    dbh: estDBH(canopy), height: estHeight(canopy,sp),
+    maturity: maturity(canopy),
+    condition: pick(CONDITIONS.slice(0,3).concat(Math.random()<0.05?["Poor"]:["Good"])),
+    status,
+    updated: new Date(Date.now()-Math.floor(rand(0,120))*864e5).toISOString().slice(0,10),
+    notes:"", history:[]
+  };
+  if(!seeded){ t.history.push(logline("Created manually")); t.updated=today(); }
+  TREES.push(t);
+  if(!seeded && typeof refreshInventory==="function") refreshInventory();
+  return t;
+}
+function today(){return new Date().toISOString().slice(0,10);}
+function logline(txt){return {ts:new Date().toISOString().slice(0,16).replace("T"," "),txt};}
+
+/* ---- 6. Map + basemaps ---- */
+const map = L.map("map",{zoomControl:true,maxZoom:20});
+const CITY_BOUNDS = L.latLngBounds(BOUNDARY);
+map.fitBounds(CITY_BOUNDS,{padding:[6,6]});
+map.setMinZoom(Math.max(13, map.getZoom()));      // can't zoom out past the city footprint
+map.setMaxBounds(CITY_BOUNDS.pad(0.04));          // panning stays tight to Orange
+
+// Explicit draw order via panes: tiles(200) < mask(350) < heat(355) < streets(360) < trees(460)
+map.createPane("maskPane").style.zIndex   = 350;
+map.createPane("heatPane").style.zIndex   = 355;
+map.createPane("streetPane").style.zIndex = 360;
+map.createPane("treePane").style.zIndex   = 460;
+["maskPane","heatPane","streetPane"].forEach(p=>map.getPane(p).style.pointerEvents="none");
+const maskRenderer   = L.canvas({pane:"maskPane"});
+const heatRenderer   = L.canvas({pane:"heatPane"});
+const streetRenderer = L.canvas({pane:"streetPane"});
+const treeRenderer   = L.canvas({pane:"treePane"});
+
+const esri = (svc)=>`https://server.arcgisonline.com/ArcGIS/rest/services/${svc}/MapServer/tile/{z}/{y}/{x}`;
+const eopt = (mn)=>({maxZoom:20, maxNativeZoom:mn, crossOrigin:true, attribution:"Imagery © Esri"});
+const BASEMAPS = {
+  "Esri · Satellite": L.tileLayer(esri("World_Imagery"), eopt(19)),
+  "Esri · Streets":   L.tileLayer(esri("World_Street_Map"), eopt(19)),
+  "Esri · Topographic":L.tileLayer(esri("World_Topo_Map"), eopt(19)),
+  "Esri · Light Gray":L.tileLayer(esri("Canvas/World_Light_Gray_Base"), eopt(16)),
+  "OpenStreetMap":    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,crossOrigin:true,attribution:"© OpenStreetMap"})
+};
+let currentBase = BASEMAPS["Esri · Satellite"].addTo(map);
+currentBase.setZIndex(0);
+
+/* ---- 7. Boundary mask (grey out everything outside Orange) ---- */
+// Bounded outer ring (not the whole world) so canvas coords stay sane and the
+// even-odd hole reliably punches through to show the imagery inside the city.
+const _ob = CITY_BOUNDS.pad(0.6);
+const OUTER=[[_ob.getSouth(),_ob.getWest()],[_ob.getSouth(),_ob.getEast()],[_ob.getNorth(),_ob.getEast()],[_ob.getNorth(),_ob.getWest()]];
+const maskLayer = L.polygon([OUTER, BOUNDARY],{
+  renderer:maskRenderer, stroke:false, fillColor:"#241f18", fillOpacity:0.6, fillRule:"evenodd", interactive:false
+}).addTo(map);
+const cityOutline = L.polygon(BOUNDARY,{renderer:maskRenderer,color:"#f4c778",weight:2.5,fill:false,interactive:false}).addTo(map);
+// street centerlines (subtle)
+const streetLayer = L.layerGroup(
+  STREETS.map(s=>L.polyline(s.pts,{renderer:streetRenderer,color:"#8fd6a6",weight:2,opacity:0.55,interactive:false}))
+).addTo(map);
+
+/* ---- 8. Tree rendering ---- */
+const treeLayer = L.layerGroup().addTo(map);
+let heatLayer = L.layerGroup();
+let selected=null, addMode=false, editMoveId=null;
+
+function treeStyle(t){
+  const base = STATUS_COLOR[t.status]||"#2f7d54";
+  const r = Math.max(4, Math.min(12, 4 + t.canopy/6));
+  const sel = (t.id===selected);
+  return {renderer:treeRenderer, radius:r, color: sel?"#f4c778":"#ffffff", weight: sel?2.5:1.1,
+          fillColor:base, fillOpacity:0.95};
+}
+function render(){
+  treeLayer.clearLayers();
+  const list = visibleTrees();
+  for(const t of list){
+    const m=L.circleMarker([t.lat,t.lng], treeStyle(t));
+    m._tid=t.id;
+    m.on("click",()=>selectTree(t.id));
+    m.addTo(treeLayer);
+    t._m=m;
+  }
+  buildDash(); 
+  if($("#heatToggle")&&$("#heatToggle").checked) drawHeat();
+}
+function selectTree(id){
+  selected=id;
+  const t=TREES.find(x=>x.id===id)||ARCHIVE.find(x=>x.id===id);
+  if(!t)return;
+  map.setView([t.lat,t.lng], Math.max(map.getZoom(),18), {animate:true});
+  openDrawer(t);
+  render();
+}
+function zoomToTrees(list,fallbackZoom){
+  const pts=list.map(t=>[t.lat,t.lng]);
+  if(pts.length>1){ map.flyToBounds(L.latLngBounds(pts).pad(0.25),{maxZoom:18,duration:.6}); }
+  else if(pts.length===1){ map.flyTo(pts[0],fallbackZoom||18,{duration:.6}); }
+}
+function zoomToStreet(name){ zoomToTrees(TREES.filter(t=>t.street===name)); }
+function zoomToWard(w){ zoomToTrees(TREES.filter(t=>t.ward===w)); }
+
+/* ---- 8b. Canopy detection from the basemap imagery ------------------------
+   In-browser heuristic: samples Esri World Imagery tiles, flags vegetation by
+   Excess-Green (2G-R-B), groups pixels into blobs, and drops one tree per
+   canopy-sized blob. Not species-aware and blind to shaded/overlapping crowns,
+   so detections land as species "Unknown" / status "Needs Review". This is the
+   demonstrable in-browser stand-in for the server-side DeepForest pipeline. --- */
+const IMAGERY_TPL = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+function lngLatToTile(lng,lat,z){
+  const n=2**z, x=Math.floor((lng+180)/360*n);
+  const r=lat*Math.PI/180, y=Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n);
+  return [x,y];
+}
+function tilePxToLatLng(x,y,px,py,z){
+  const n=2**z, lng=(x+px/256)/n*360-180;
+  const r=Math.atan(Math.sinh(Math.PI*(1-2*(y+py/256)/n)));
+  return [r*180/Math.PI, lng];
+}
+function mppAt(lat,z){ return 156543.03392*Math.cos(lat*Math.PI/180)/(2**z); }
+function loadTileImg(url){
+  return new Promise((res)=>{ const im=new Image(); im.crossOrigin="anonymous";
+    im.onload=()=>res(im); im.onerror=()=>res(null); im.src=url; });
+}
+let detectAbort=false;
+async function detectFromImagery(zoom, cityWide){
+  const b = cityWide ? CITY_BOUNDS : map.getBounds();
+  const nw=lngLatToTile(b.getWest(),b.getNorth(),zoom);
+  const se=lngLatToTile(b.getEast(),b.getSouth(),zoom);
+  const tiles=[];
+  for(let x=nw[0];x<=se[0];x++) for(let y=nw[1];y<=se[1];y++) tiles.push([x,y]);
+  if(tiles.length>1600){ alert(`That area is ${tiles.length} tiles at zoom ${zoom} — too many. Use a lower detail level or scan a smaller view.`); return; }
+
+  detectAbort=false;
+  const cv=document.createElement("canvas"); cv.width=cv.height=256;
+  const cx=cv.getContext("2d",{willReadFrequently:true});
+  const dedup=new Map();                 // ~5 m grid → best canopy
+  const cellDeg=5/111320;                // dedup resolution
+  showProgress(0,tiles.length,"Reading imagery…");
+  let done=0, tainted=false;
+  const BATCH=8;
+  for(let i=0;i<tiles.length && !detectAbort;i+=BATCH){
+    const grp=tiles.slice(i,i+BATCH);
+    const imgs=await Promise.all(grp.map(([x,y])=>loadTileImg(
+      IMAGERY_TPL.replace("{z}",zoom).replace("{y}",y).replace("{x}",x))));
+    for(let j=0;j<grp.length;j++){
+      const im=imgs[j]; if(!im) continue;
+      let px;
+      try{ cx.clearRect(0,0,256,256); cx.drawImage(im,0,0,256,256); px=cx.getImageData(0,0,256,256).data; }
+      catch(err){ tainted=true; break; }
+      segmentTile(px, grp[j][0], grp[j][1], zoom, dedup, cellDeg);
+    }
+    if(tainted) break;
+    done+=grp.length; showProgress(done,tiles.length,"Reading imagery…");
+    await new Promise(r=>setTimeout(r,0));
+  }
+  if(tainted){
+    hideProgress();
+    alert("This environment's imagery tiles aren't sending CORS headers, so the pixels can't be read for detection. It works when the app is hosted (e.g. GitHub Pages). Keeping the current trees.");
+    return;
+  }
+  if(detectAbort){ hideProgress(); toast("Detection cancelled"); return; }
+
+  // rebuild inventory from detections
+  TREES=[]; ARCHIVE.length=0; for(const k in idCounters) delete idCounters[k];
+  let n=0;
+  for(const d of dedup.values()){ if(inBoundary([d.lat,d.lng])){ addDetected(d.lat,d.lng,d.canopyFt); n++; } }
+  hideProgress(); selected=null;
+  render(); renderRail();
+  markImageryMode(zoom, cityWide);
+  toast(`Detected ${n.toLocaleString()} canopies from imagery`);
+}
+function segmentTile(px, tx, ty, z, dedup, cellDeg){
+  const W=256, N=W*W, mask=new Uint8Array(N);
+  for(let p=0,q=0;p<N;p++,q+=4){
+    const r=px[q], g=px[q+1], bl=px[q+2];
+    // Excess-Green vegetation index, reject dark shadow & bright pavement
+    if((2*g - r - bl) > 34 && g > 45 && g < 235) mask[p]=1;
+  }
+  const midLat = tilePxToLatLng(tx,ty,128,128,z)[0];
+  const mpp = mppAt(midLat,z);
+  const minA = Math.max(6, Math.PI*Math.pow(1.5/mpp,2));   // ≥ ~3 m crown
+  const maxA = Math.PI*Math.pow(12/mpp,2);                 // ≤ ~24 m crown
+  const lawnCap = maxA*3.2;                                // bigger = lawn/field, skip
+  const seen=new Uint8Array(N), stack=[];
+  for(let s=0;s<N;s++){
+    if(!mask[s]||seen[s]) continue;
+    let area=0,sx=0,sy=0; stack.length=0; stack.push(s); seen[s]=1;
+    while(stack.length){
+      const c=stack.pop(), cxp=c%W, cyp=(c-cxp)/W;
+      area++; sx+=cxp; sy+=cyp;
+      if(cxp>0   && mask[c-1] && !seen[c-1]){seen[c-1]=1;stack.push(c-1);}
+      if(cxp<W-1 && mask[c+1] && !seen[c+1]){seen[c+1]=1;stack.push(c+1);}
+      if(cyp>0   && mask[c-W] && !seen[c-W]){seen[c-W]=1;stack.push(c-W);}
+      if(cyp<W-1 && mask[c+W] && !seen[c+W]){seen[c+W]=1;stack.push(c+W);}
+    }
+    if(area<minA || area>lawnCap) continue;
+    // one crown for blobs up to maxA; split oversized clumps into a coarse grid
+    const crowns=[];
+    if(area<=maxA){ crowns.push([sx/area, sy/area, area]); }
+    else{
+      const step=Math.max(4,Math.round(2*Math.sqrt(maxA/Math.PI)));
+      // re-walk not tracked; approximate clump as centroid grid over its bbox is overkill —
+      // place points on a lattice across the tile where mask is set, near this blob's centroid
+      const cxC=sx/area, cyC=sy/area, spread=Math.sqrt(area)/2;
+      for(let ox=-spread;ox<=spread;ox+=step) for(let oy=-spread;oy<=spread;oy+=step){
+        const gx=Math.round(cxC+ox), gy=Math.round(cyC+oy);
+        if(gx>=0&&gx<W&&gy>=0&&gy<W&&mask[gy*W+gx]) crowns.push([gx,gy,maxA*0.7]);
+      }
+    }
+    for(const [cxp,cyp,a] of crowns){
+      const [lat,lng]=tilePxToLatLng(tx,ty,cxp,cyp,z);
+      const dM = 2*Math.sqrt(a/Math.PI)*mpp;
+      const canopyFt = Math.min(80, Math.max(6, dM*3.28084));
+      const key = Math.round(lat/cellDeg)+"_"+Math.round(lng/cellDeg);
+      const prev=dedup.get(key);
+      if(!prev || canopyFt>prev.canopyFt) dedup.set(key,{lat,lng,canopyFt});
+    }
+  }
+}
+function addDetected(lat,lng,canopyFt){
+  const street=nearestStreet([lat,lng]);
+  const c=+(+canopyFt).toFixed(1);
+  const t={
+    id: nextId(street.abbr), street:street.name, abbr:street.abbr, ward:assignWard(lat,lng),
+    lat:+lat.toFixed(6), lng:+lng.toFixed(6),
+    species:"Unknown", speciesConf:0,
+    canopy:c, canopyArea:canopyArea(c), dbh:estDBH(c), height:estHeight(c,"Unknown"),
+    maturity:maturity(c), condition:"Unknown", status:"Needs Review",
+    updated:today(), notes:"Auto-detected from Esri imagery (heuristic canopy segmentation).",
+    history:[logline("Detected from basemap imagery")], source:"imagery"
+  };
+  TREES.push(t); return t;
+}
+/* progress overlay */
+function showProgress(done,total,label){
+  let el=$("#progress");
+  if(!el){ el=document.createElement("div"); el.id="progress"; document.body.appendChild(el); }
+  const pct= total? Math.round(done/total*100):0;
+  el.innerHTML=`<div class="pgh">${label||"Working…"} <b>${pct}%</b> <span>${done}/${total} tiles</span>
+     <button id="pgCancel">Cancel</button></div>
+     <div class="pgbar"><span style="width:${pct}%"></span></div>`;
+  el.style.display="block";
+  const cb=$("#pgCancel"); if(cb) cb.onclick=()=>{ detectAbort=true; };
+}
+function hideProgress(){ const el=$("#progress"); if(el) el.style.display="none"; }
+function markImageryMode(zoom, cityWide){
+  const rb=$("#sampleribbon");
+  if(rb) rb.innerHTML=`<b style="color:#8fd6a6">IMAGERY-DETECTED</b> · ${TREES.length.toLocaleString()} canopies
+    (zoom ${zoom}${cityWide?", city-wide":", current view"}). Heuristic — species/condition need field review.
+    <a href="#" id="ribbonAbout">how</a> · <a href="#" id="ribbonReset">reset to sample</a>`;
+  const ra=$("#ribbonAbout"); if(ra) ra.onclick=e=>{e.preventDefault();openAbout();};
+  const rr=$("#ribbonReset"); if(rr) rr.onclick=e=>{e.preventDefault();seedInventory();render();renderRail();
+    const rb2=$("#sampleribbon"); if(rb2) rb2.innerHTML=SAMPLE_RIBBON; wireRibbon();};
+}
+
+
+/* ---- 9. Filters ---- */
+const FILTER={species:new Set(),status:new Set(),street:"",minConf:0,minCanopy:0,maturity:new Set(),q:""};
+function visibleTrees(){
+  return TREES.filter(t=>{
+    if(FILTER.species.size && !FILTER.species.has(t.species))return false;
+    if(FILTER.status.size && !FILTER.status.has(t.status))return false;
+    if(FILTER.maturity.size && !FILTER.maturity.has(t.maturity))return false;
+    if(FILTER.street && t.street!==FILTER.street)return false;
+    if(t.speciesConf<FILTER.minConf)return false;
+    if(t.canopy<FILTER.minCanopy)return false;
+    if(FILTER.q){
+      const q=FILTER.q.toLowerCase();
+      if(!(t.id.toLowerCase().includes(q)||t.street.toLowerCase().includes(q)||t.species.toLowerCase().includes(q)))return false;
+    }
+    return true;
+  });
+}
+
+/* ---- 10. Canopy coverage heat grid (coverage %, adjustable cell size) ---- */
+let gridFt=100;
+function drawHeat(){
+  heatLayer.clearLayers();
+  const b=L.latLngBounds(BOUNDARY);
+  const latSpanM=distM([b.getSouth(),b.getWest()],[b.getNorth(),b.getWest()]);
+  const lngSpanM=distM([b.getSouth(),b.getWest()],[b.getSouth(),b.getEast()]);
+  const cellM=gridFt*0.3048;
+  const rows=Math.ceil(latSpanM/cellM), cols=Math.ceil(lngSpanM/cellM);
+  const dLat=(b.getNorth()-b.getSouth())/rows, dLng=(b.getEast()-b.getWest())/cols;
+  const cellAreaM2=cellM*cellM;
+  const grid={};
+  for(const t of visibleTrees()){
+    if(t.status==="Removed"||t.status==="Dead")continue;
+    const r=Math.floor((t.lat-b.getSouth())/dLat), c=Math.floor((t.lng-b.getWest())/dLng);
+    const k=r+"_"+c;
+    const aM2=t.canopyArea*0.092903; // sq ft -> m2
+    grid[k]=(grid[k]||0)+aM2;
+  }
+  for(const k in grid){
+    const [r,c]=k.split("_").map(Number);
+    const cov=Math.min(1,grid[k]/cellAreaM2);
+    const sw=b.getSouth()+r*dLat, ww=b.getWest()+c*dLng;
+    L.rectangle([[sw,ww],[sw+dLat,ww+dLng]],{
+      renderer:heatRenderer, stroke:false, fillColor:coverColor(cov), fillOpacity:0.5, interactive:false
+    }).addTo(heatLayer);
+  }
+  if(!map.hasLayer(heatLayer))heatLayer.addTo(map);
+}
+function coverColor(c){
+  // Red(critical) -> Orange -> Yellow -> LightGreen -> Green -> Blue(excellent)
+  if(c>=0.6)return "#2166ac";
+  if(c>=0.4)return "#1f7a3f";
+  if(c>=0.25)return "#7fc241";
+  if(c>=0.12)return "#e9d24a";
+  if(c>=0.05)return "#e08a2e";
+  return "#c0392b";
+}
+
+/* ---- 11. Dashboard ---- */
+function buildDash(){
+  if(currentTab!=="dash")return;
+  const v=visibleTrees();
+  const alive=v.filter(t=>t.status!=="Removed"&&t.status!=="Dead");
+  const totalCanopyFt2=alive.reduce((s,t)=>s+t.canopyArea,0);
+  const cityAreaFt2=2.2*27878400; // ~2.2 sq mi -> ft²
+  const canopyPct=(totalCanopyFt2/cityAreaFt2*100);
+  const avgCanopy=v.length?(v.reduce((s,t)=>s+t.canopy,0)/v.length):0;
+  const largest=v.reduce((a,t)=>t.canopy>(a?a.canopy:0)?t:a,null);
+  const review=v.filter(t=>t.status==="Needs Review").length;
+  // species distribution
+  const spCount={}; v.forEach(t=>spCount[t.species]=(spCount[t.species]||0)+1);
+  const spSorted=Object.entries(spCount).sort((a,b)=>b[1]-a[1]).slice(0,7);
+  const maxSp=spSorted.length?spSorted[0][1]:1;
+  // street rankings
+  const stCount={}; v.forEach(t=>stCount[t.street]=(stCount[t.street]||0)+1);
+  const stSorted=Object.entries(stCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  // carbon / stormwater rough estimates (i-Tree style placeholders)
+  const carbon=Math.round(alive.length*0.026); // metric tons CO2e / yr, rough
+  const storm=Math.round(alive.length*0.9);     // kilogallons / yr, rough
+
+  $("#dashBody").innerHTML=`
+    <div class="kpis">
+      <div class="kpi"><div class="n">${v.length.toLocaleString()}</div><div class="l">Trees (in view)</div></div>
+      <div class="kpi"><div class="n">${canopyPct.toFixed(1)}%</div><div class="l">Est. canopy cover</div></div>
+      <div class="kpi"><div class="n">${avgCanopy.toFixed(0)}′</div><div class="l">Avg canopy dia.</div></div>
+      <div class="kpi"><div class="n" style="color:var(--amber)">${review}</div><div class="l">Need review</div></div>
+    </div>
+    <div style="margin-top:12px" class="note">
+      Largest in view: <b>${largest?largest.id:"—"}</b>${largest?` · ${largest.canopy}′ ${largest.species}`:""}
+    </div>
+    <h4 style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--canopy);margin:14px 0 6px">Species distribution</h4>
+    ${spSorted.map(([n,c])=>`<div class="distrow"><div class="nm">${n}</div><div class="bwrap"><div class="bar"><span style="width:${c/maxSp*100}%"></span></div></div><div class="v">${c}</div></div>`).join("")}
+    <h4 style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--canopy);margin:14px 0 6px">Trees by street <span style="text-transform:none;color:var(--ink-soft);font-weight:400">· tap to zoom</span></h4>
+    ${stSorted.map(([n,c])=>`<div class="distrow" data-street="${n}" style="cursor:pointer"><div class="nm">${n}</div><div class="bwrap"><div class="bar"><span style="width:${c/stSorted[0][1]*100}%;background:var(--leaf)"></span></div></div><div class="v">${c}</div></div>`).join("")}
+    <h4 style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--canopy);margin:14px 0 6px">Est. environmental value <span style="text-transform:none;color:var(--ink-soft);font-weight:400">· annual</span></h4>
+    <div class="kpis">
+      <div class="kpi"><div class="n">${carbon}</div><div class="l">t CO₂e captured</div></div>
+      <div class="kpi"><div class="n">${storm}</div><div class="l">kGal stormwater</div></div>
+    </div>
+    <p class="note" style="margin-top:12px">
+      Canopy %, carbon and stormwater shown here are rough proxies from sample points.
+      For grant-grade figures use <a href="https://www.treeequityscore.org/insights/place/orange-nj" target="_blank" style="color:var(--canopy-2);font-weight:600">Tree Equity Score for Orange</a>
+      (block-group canopy, priority planting) and <a href="https://landscape.itreetools.org" target="_blank" style="color:var(--canopy-2);font-weight:600">i-Tree Landscape</a> for benefits.
+    </p>`;
+  $("#dashBody").onclick=(e)=>{const r=e.target.closest("[data-street]");if(r)zoomToStreet(r.dataset.street);};
+}
+
+/* ---- 11b. Collapsible inventory browser (by ward / by street) ---- */
+let invGroup="Ward";
+function esc(s){return String(s).replace(/"/g,"&quot;");}
+function buildInventory(){
+  const host=$("#invBody"); if(!host)return;
+  const g={}; for(const t of TREES){const k=invGroup==="Ward"?t.ward:t.street;(g[k]=g[k]||[]).push(t);}
+  const order = invGroup==="Ward" ? WARDS.filter(w=>g[w]) : Object.keys(g).sort();
+  host.innerHTML=`
+    <div class="grp-toggle">
+      <div class="gt ${invGroup==="Ward"?"on":""}" data-g="Ward">By ward</div>
+      <div class="gt ${invGroup==="Street"?"on":""}" data-g="Street">By street</div>
+    </div>
+    <div class="note" style="margin:-2px 0 9px">${TREES.length.toLocaleString()} trees · tap a header to expand, ⌖ to zoom, a row to open</div>
+    ${order.map(k=>`
+      <div class="acc" data-key="${esc(k)}" data-type="${invGroup}">
+        <div class="acch" data-role="head">
+          <span class="tw">▶</span>
+          ${invGroup==="Ward"?`<span class="dot" style="background:${WARD_COLOR[k]}"></span>`:""}
+          <span>${k}${invGroup==="Ward"?" Ward":""}</span>
+          <span class="cnt">${g[k].length}</span>
+          <button class="zoom" data-role="zoom" title="Zoom to ${esc(k)}">⌖</button>
+        </div>
+        <div class="accc" data-role="body"></div>
+      </div>`).join("")}`;
+}
+function rowHTML(t){
+  return `<div class="trow" data-id="${t.id}">
+    <span class="tst" style="background:${STATUS_COLOR[t.status]||"#888"}"></span>
+    <span class="tid">${t.id.replace("ORG-","")}</span>
+    <span class="tsp">${t.species} · ${t.canopy}′ · ${t.status}</span>
+  </div>`;
+}
+function fillAccBody(acc,type,key){
+  const body=acc.querySelector(':scope > [data-role="body"]');
+  if(type==="Ward"){
+    const byStreet={}; TREES.filter(t=>t.ward===key).forEach(t=>(byStreet[t.street]=byStreet[t.street]||[]).push(t));
+    body.innerHTML=Object.keys(byStreet).sort().map(st=>`
+      <div class="acc" data-key="${esc(st)}" data-type="Street">
+        <div class="acch subh" data-role="head">
+          <span class="tw">▶</span><span>${st}</span><span class="cnt">${byStreet[st].length}</span>
+          <button class="zoom" data-role="zoom" title="Zoom to ${esc(st)}">⌖</button>
+        </div>
+        <div class="accc" data-role="body"></div>
+      </div>`).join("");
+  } else {
+    const list=TREES.filter(t=>t.street===key).sort((a,b)=>a.id.localeCompare(b.id));
+    body.innerHTML=list.map(rowHTML).join("");
+  }
+}
+function wireInventory(){
+  const host=$("#invBody"); if(!host)return;
+  host.onclick=(e)=>{
+    const gt=e.target.closest(".gt"); if(gt){invGroup=gt.dataset.g;buildInventory();return;}
+    const trow=e.target.closest(".trow"); if(trow){selectTree(trow.dataset.id);return;}
+    const acc=e.target.closest(".acc"); if(!acc)return;
+    const key=acc.dataset.key, type=acc.dataset.type;
+    if(e.target.closest('[data-role="zoom"]')){ type==="Ward"?zoomToWard(key):zoomToStreet(key); return; }
+    const head=acc.querySelector(':scope > .acch');
+    const body=acc.querySelector(':scope > [data-role="body"]');
+    if(head && body){
+      const open=body.classList.toggle("open"); head.classList.toggle("open",open);
+      if(open && !body.dataset.filled){ fillAccBody(acc,type,key); body.dataset.filled="1"; }
+    }
+  };
+}
+function refreshInventory(){ if($("#invBody")) buildInventory(); }
+
+/* ---- 12. Rail tab content ---- */
+let currentTab="dash";
+function renderRail(){
+  const rail=$("#railScroll");
+  if(currentTab==="dash"){
+    rail.innerHTML=`
+      <div class="panel"><h2>Municipal dashboard<span style="font-weight:600;color:var(--ink-soft);text-transform:none;letter-spacing:0">live</span></h2><div class="body" id="dashBody"></div></div>
+      <div class="panel"><h2>Tree inventory<span style="font-weight:600;color:var(--ink-soft);text-transform:none;letter-spacing:0">by ward &amp; street</span></h2><div class="body" id="invBody"></div></div>`;
+    buildDash();
+    buildInventory();
+    wireInventory();
+  }
+  if(currentTab==="filter"){
+    rail.innerHTML=`
+    <div class="panel"><h2>Filters</h2><div class="body">
+      <div class="field"><div class="flabel">Street</div>
+        <select id="fStreet"><option value="">All streets</option>${STREET_NAMES.map(n=>`<option>${n}</option>`).join("")}</select></div>
+      <div class="field"><div class="flabel">Status</div><div class="seg" id="fStatus">${STATUS.map(s=>`<span class="chip" data-v="${s}">${s}</span>`).join("")}</div></div>
+      <div class="field"><div class="flabel">Species</div><div class="seg" id="fSpecies">${SPECIES.map(s=>`<span class="chip" data-v="${s}">${s}</span>`).join("")}</div></div>
+      <div class="field"><div class="flabel">Maturity</div><div class="seg" id="fMat">${["Young","Semi-Mature","Mature","Large Mature","Heritage"].map(s=>`<span class="chip" data-v="${s}">${s}</span>`).join("")}</div></div>
+      <div class="field"><div class="flabel">Min species confidence · <span id="confVal">0</span>%</div><input type="range" id="fConf" min="0" max="95" value="0" style="width:100%"></div>
+      <div class="field"><div class="flabel">Min canopy diameter · <span id="canVal">0</span>′</div><input type="range" id="fCan" min="0" max="52" value="0" style="width:100%"></div>
+      <button class="btn ghost" id="fClear">Clear all filters</button>
+    </div></div>`;
+    wireFilters();
+  }
+  if(currentTab==="layers"){
+    rail.innerHTML=`
+    <div class="panel"><h2>Layers &amp; scale</h2><div class="body">
+      <div class="field"><div class="flabel">Basemap</div>
+        <select id="baseSel">${Object.keys(BASEMAPS).map(k=>`<option${k==="Esri · Satellite"?" selected":""}>${k}</option>`).join("")}</select></div>
+      <div class="row"><label>City boundary + grey mask</label><label class="switch"><input type="checkbox" id="maskToggle" checked><span class="track"></span></label></div>
+      <div class="row"><label>Street centerlines</label><label class="switch"><input type="checkbox" id="streetToggle" checked><span class="track"></span></label></div>
+      <div class="row"><label>Canopy coverage heatmap</label><label class="switch"><input type="checkbox" id="heatToggle"><span class="track"></span></label></div>
+      <div class="field" id="gridWrap" style="display:none"><div class="flabel">Heatmap grid cell</div>
+        <select id="gridSel"><option value="25">25 ft</option><option value="50">50 ft</option><option value="100" selected>100 ft</option><option value="250">250 ft</option></select></div>
+    </div></div>
+    <div class="panel"><h2>Detect from imagery</h2><div class="body">
+      <p class="note" style="margin:0 0 9px">Reads the satellite basemap and plots a tree at every canopy it finds. Heuristic vegetation detection — results come in as <b>Unknown · Needs Review</b>.</p>
+      <div class="field"><div class="flabel">Detail level</div>
+        <select id="detZoom"><option value="16">Fast (z16 · coarse)</option><option value="17" selected>Balanced (z17)</option><option value="18">High detail (z18 · slow)</option></select></div>
+      <div class="btngrid" style="margin-bottom:7px">
+        <button class="btn" id="detCity">Scan whole city</button>
+        <button class="btn ghost" id="detView">Scan current view</button>
+      </div>
+      <button class="btn ghost" id="detReset">Reset to sample data</button>
+    </div></div>
+    <div class="panel"><h2>Coverage legend</h2><div class="body"><div class="legend">
+      <div class="li"><span class="sw" style="background:#2166ac"></span>Excellent (≥60%)</div>
+      <div class="li"><span class="sw" style="background:#1f7a3f"></span>High (40–60%)</div>
+      <div class="li"><span class="sw" style="background:#7fc241"></span>Moderate (25–40%)</div>
+      <div class="li"><span class="sw" style="background:#e9d24a"></span>Sparse (12–25%)</div>
+      <div class="li"><span class="sw" style="background:#e08a2e"></span>Poor (5–12%)</div>
+      <div class="li"><span class="sw" style="background:#c0392b"></span>Critical (&lt;5%)</div>
+    </div></div></div>
+    <div class="panel"><h2>Status legend</h2><div class="body"><div class="legend">
+      ${STATUS.map(s=>`<div class="li"><span class="sw" style="background:${STATUS_COLOR[s]}"></span>${s}</div>`).join("")}
+    </div></div></div>`;
+    wireLayers();
+  }
+}
+function wireFilters(){
+  $("#fStreet").onchange=e=>{FILTER.street=e.target.value;render();};
+  const chipToggle=(sel,set)=>{$(sel).querySelectorAll(".chip").forEach(c=>c.onclick=()=>{
+    c.classList.toggle("on"); const v=c.dataset.v; set.has(v)?set.delete(v):set.add(v); render();
+  });};
+  chipToggle("#fStatus",FILTER.status); chipToggle("#fSpecies",FILTER.species); chipToggle("#fMat",FILTER.maturity);
+  $("#fConf").oninput=e=>{FILTER.minConf=+e.target.value;$("#confVal").textContent=e.target.value;render();};
+  $("#fCan").oninput=e=>{FILTER.minCanopy=+e.target.value;$("#canVal").textContent=e.target.value;render();};
+  $("#fClear").onclick=()=>{FILTER.species.clear();FILTER.status.clear();FILTER.maturity.clear();FILTER.street="";FILTER.minConf=0;FILTER.minCanopy=0;renderRail();render();};
+}
+function wireLayers(){
+  $("#baseSel").onchange=e=>{map.removeLayer(currentBase);currentBase=BASEMAPS[e.target.value].addTo(map);currentBase.bringToBack();};
+  $("#maskToggle").onchange=e=>{if(e.target.checked){maskLayer.addTo(map);cityOutline.addTo(map);}else{map.removeLayer(maskLayer);map.removeLayer(cityOutline);}};
+  $("#streetToggle").onchange=e=>{e.target.checked?streetLayer.addTo(map):map.removeLayer(streetLayer);};
+  $("#heatToggle").onchange=e=>{$("#gridWrap").style.display=e.target.checked?"block":"none";if(e.target.checked)drawHeat();else heatLayer.clearLayers();};
+  $("#gridSel").onchange=e=>{gridFt=+e.target.value;drawHeat();};
+  const dz=$("#detZoom"); if(dz){ dz.value=String(detectZoom); dz.onchange=e=>{detectZoom=+e.target.value;}; }
+  if($("#detCity")) $("#detCity").onclick=()=>detectFromImagery(detectZoom,true);
+  if($("#detView")) $("#detView").onclick=()=>detectFromImagery(Math.max(detectZoom,18),false);
+  if($("#detReset")) $("#detReset").onclick=()=>{seedInventory();render();renderRail();
+    const rb=$("#sampleribbon"); if(rb){rb.innerHTML=SAMPLE_RIBBON;wireRibbon();} toast("Reset to sample data");};
+}
+
+/* ---- 13. Detail / edit drawer ---- */
+function openDrawer(t){
+  const editable = t.status!=="Removed";
+  const c=STATUS_COLOR[t.status]||"#888";
+  $("#drawerTitle").textContent=t.id;
+  $("#drawerBody").innerHTML=`
+    <div class="field">
+      <span class="statuspill" style="background:${c}22;color:${c};border:1px solid ${c}55">${t.status}</span>
+      <span class="conf" style="margin-left:8px">species conf.
+        <span class="confbar"><span style="width:${t.speciesConf}%;background:${t.speciesConf>75?'#2f7d54':t.speciesConf>60?'#c8811f':'#a2492f'}"></span></span>${t.speciesConf}%</span>
+    </div>
+    <div class="meas">
+      <div class="m"><div class="mv">${t.canopy}′</div><div class="ml">Canopy dia.</div></div>
+      <div class="m"><div class="mv">${t.canopyArea.toLocaleString()}</div><div class="ml">Canopy ft²</div></div>
+      <div class="m"><div class="mv">${t.height}′</div><div class="ml">Est. height</div></div>
+      <div class="m"><div class="mv">${t.dbh}″</div><div class="ml">Est. DBH</div></div>
+    </div>
+    <p class="note" style="margin:8px 0">Height, DBH and maturity are model estimates from canopy geometry, not field measurements.</p>
+
+    <div class="field"><div class="flabel">Species</div>
+      <select id="edSpecies" ${editable?"":"disabled"}>${SPECIES.map(s=>`<option${s===t.species?" selected":""}>${s}</option>`).join("")}</select></div>
+    <div class="field"><div class="flabel">Street</div>
+      <select id="edStreet" ${editable?"":"disabled"}>${STREET_NAMES.map(n=>`<option${n===t.street?" selected":""}>${n}</option>`).join("")}</select></div>
+    <div class="meas">
+      <div class="field" style="margin:0"><div class="flabel">Canopy dia. (ft)</div><input type="number" id="edCanopy" value="${t.canopy}" ${editable?"":"disabled"}></div>
+      <div class="field" style="margin:0"><div class="flabel">Height (ft)</div><input type="number" id="edHeight" value="${t.height}" ${editable?"":"disabled"}></div>
+    </div>
+    <div class="field"><div class="flabel">Status</div>
+      <select id="edStatus">${STATUS.map(s=>`<option${s===t.status?" selected":""}>${s}</option>`).join("")}</select></div>
+    <div class="field"><div class="flabel">Condition</div>
+      <select id="edCond" ${editable?"":"disabled"}>${CONDITIONS.map(s=>`<option${s===t.condition?" selected":""}>${s}</option>`).join("")}</select></div>
+    <div class="field"><div class="flabel">Maturity · ${t.maturity}</div></div>
+    <div class="field"><div class="flabel">Notes</div><textarea id="edNotes" rows="2" ${editable?"":"disabled"}>${t.notes||""}</textarea></div>
+    <div class="field"><div class="flabel">Coordinates</div>
+      <div class="note" style="font-family:var(--mono)">${t.lat}, ${t.lng} · updated ${t.updated}</div></div>
+
+    ${editable?`<div class="btngrid" style="margin-top:6px">
+      <button class="btn" id="edSave">Save changes</button>
+      <button class="btn ghost" id="edMove">Move point</button>
+    </div>
+    <div class="btngrid" style="margin-top:7px">
+      <button class="btn warnb" id="edVerify">Mark verified</button>
+      <button class="btn danger" id="edDelete">Remove (archive)</button>
+    </div>`:`<button class="btn ghost" id="edRestore" style="margin-top:6px">Restore from archive</button>`}
+
+    ${t.history.length?`<h4 style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--canopy);margin:14px 0 6px">Edit history</h4>
+      ${t.history.slice().reverse().map(h=>`<div class="hist"><b>${h.ts}</b> · ${h.txt}</div>`).join("")}`:""}
+  `;
+  $("#drawer").classList.add("open");
+  if(!editable){ $("#edRestore").onclick=()=>restoreTree(t.id); return; }
+
+  $("#edSave").onclick=()=>{
+    const canopy=+$("#edCanopy").value;
+    t.species=$("#edSpecies").value; t.street=$("#edStreet").value;
+    t.canopy=canopy; t.canopyArea=canopyArea(canopy); t.maturity=maturity(canopy);
+    t.dbh=estDBH(canopy); t.height=+$("#edHeight").value;
+    t.status=$("#edStatus").value; t.condition=$("#edCond").value; t.notes=$("#edNotes").value;
+    t.abbr=(STREETS.find(s=>s.name===t.street)||{abbr:t.abbr}).abbr;
+    t.updated=today(); t.history.push(logline("Edited attributes"));
+    toast("Saved "+t.id); openDrawer(t); render();
+  };
+  $("#edVerify").onclick=()=>{t.status="Verified";t.speciesConf=Math.max(t.speciesConf,90);t.updated=today();t.history.push(logline("Field verified"));toast("Verified");openDrawer(t);render();};
+  $("#edStatus").onchange=()=>{}; // applied on save
+  $("#edMove").onclick=()=>startMove(t.id);
+  $("#edDelete").onclick=()=>deleteTree(t.id);
+}
+$("#drawerClose").onclick=()=>{$("#drawer").classList.remove("open");selected=null;render();};
+
+/* ---- 14. Move / add / delete / restore ---- */
+function startMove(id){
+  editMoveId=id; toast("Click the new location for "+id);
+  map.getContainer().style.cursor="crosshair";
+}
+function deleteTree(id){
+  const i=TREES.findIndex(t=>t.id===id); if(i<0)return;
+  const t=TREES[i]; t.status="Removed"; t.updated=today(); t.history.push(logline("Removed → archived"));
+  ARCHIVE.push(t); TREES.splice(i,1);
+  toast(id+" archived (ID retained)"); $("#drawer").classList.remove("open"); render(); refreshInventory();
+}
+function restoreTree(id){
+  const i=ARCHIVE.findIndex(t=>t.id===id); if(i<0)return;
+  const t=ARCHIVE[i]; t.status="Existing"; t.updated=today(); t.history.push(logline("Restored from archive"));
+  TREES.push(t); ARCHIVE.splice(i,1); toast(id+" restored"); render(); refreshInventory(); selectTree(id);
+}
+function inBoundary(ll){
+  // ray casting
+  let inside=false, x=ll[1], y=ll[0];
+  for(let i=0,j=BOUNDARY.length-1;i<BOUNDARY.length;j=i++){
+    const xi=BOUNDARY[i][1],yi=BOUNDARY[i][0],xj=BOUNDARY[j][1],yj=BOUNDARY[j][0];
+    const hit=((yi>y)!=(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi);
+    if(hit)inside=!inside;
+  }
+  return inside;
+}
+map.on("click",e=>{
+  const ll=[e.latlng.lat,e.latlng.lng];
+  if(editMoveId){
+    if(!inBoundary(ll)){toast("Point must be inside Orange");return;}
+    const t=TREES.find(x=>x.id===editMoveId);
+    t.lat=+ll[0].toFixed(6); t.lng=+ll[1].toFixed(6); t.updated=today(); t.history.push(logline("Moved point"));
+    const ns=nearestStreet(ll); if(ns){t.street=ns.name;t.abbr=ns.abbr;}
+    editMoveId=null; map.getContainer().style.cursor="";
+    toast("Moved "+t.id); render(); openDrawer(t); return;
+  }
+  if(addMode){
+    if(!inBoundary(ll)){toast("Trees can only be added inside Orange");return;}
+    const t=makeTree(ll,null,false);
+    toast("Added "+t.id); render(); selectTree(t.id);
+    return;
+  }
+});
+
+/* ---- 15. Add-mode toggle ---- */
+$("#btnAdd").onclick=()=>{
+  addMode=!addMode;
+  $("#btnAdd").style.background=addMode?"rgba(200,129,31,.9)":"";
+  $("#modehint").style.display=addMode?"block":"none";
+  map.getContainer().style.cursor=addMode?"copy":"";
+};
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){addMode=false;editMoveId=null;$("#btnAdd").style.background="";$("#modehint").style.display="none";map.getContainer().style.cursor="";}});
+
+/* ---- 16. Search ---- */
+$("#searchInput").oninput=e=>{FILTER.q=e.target.value.trim();render();
+  const v=visibleTrees(); if(FILTER.q && v.length===1) selectTree(v[0].id);
+};
+$("#searchInput").onkeydown=e=>{if(e.key==="Enter"){const v=visibleTrees();if(v.length){selectTree(v[0].id);map.setZoom(18);}}};
+
+/* ---- 17. Export ---- */
+$("#btnExport").onclick=()=>{
+  const menu=`Export current view (${visibleTrees().length} trees):\n\nOK = GeoJSON   ·   Cancel = CSV`;
+  if(confirm(menu)) download("orange-tree-inventory.geojson", toGeoJSON(), "application/geo+json");
+  else download("orange-tree-inventory.csv", toCSV(), "text/csv");
+};
+function toGeoJSON(){
+  return JSON.stringify({type:"FeatureCollection",features:visibleTrees().map(t=>({
+    type:"Feature",
+    geometry:{type:"Point",coordinates:[t.lng,t.lat]},
+    properties:{id:t.id,street:t.street,species:t.species,species_confidence:t.speciesConf,
+      canopy_ft:t.canopy,canopy_area_ft2:t.canopyArea,dbh_in:t.dbh,height_ft:t.height,
+      maturity:t.maturity,condition:t.condition,status:t.status,updated:t.updated,notes:t.notes}
+  }))},null,2);
+}
+function toCSV(){
+  const cols=["id","street","species","speciesConf","canopy","canopyArea","dbh","height","maturity","condition","status","lat","lng","updated","notes"];
+  const rows=[cols.join(",")].concat(visibleTrees().map(t=>cols.map(c=>{
+    const val=(""+(t[c]??"")).replace(/"/g,'""'); return /[",\n]/.test(val)?`"${val}"`:val;
+  }).join(",")));
+  return rows.join("\n");
+}
+function download(name,text,mime){
+  const b=new Blob([text],{type:mime}); const u=URL.createObjectURL(b);
+  const a=document.createElement("a"); a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u);
+  toast("Downloaded "+name);
+}
+
+/* ---- 18. About / detection pipeline modal (the honesty layer) ---- */
+const SAMPLE_RIBBON = `<b>SAMPLE DATA</b> — seeded demo records, not real detections. Tap <b style="color:#f4c778">Detect from imagery</b> to plot real canopies (<a href="#" id="ribbonAbout">how</a>).`;
+function wireRibbon(){ const ra=$("#ribbonAbout"); if(ra) ra.onclick=e=>{e.preventDefault();openAbout();}; }
+$("#sampleribbon").innerHTML=SAMPLE_RIBBON;
+$("#btnAbout").onclick=openAbout; wireRibbon();
+// Detect button (top bar): city-wide scan at the default detail level
+let detectZoom=17;
+$("#btnDetect").onclick=()=>{
+  if(!confirm(`Scan the City of Orange imagery and plot a tree at every canopy found?\n\nDetail level: zoom ${detectZoom}. This reads satellite tiles live and may take up to a minute. It replaces the current tree set.`)) return;
+  detectFromImagery(detectZoom, true);
+};
+function openAbout(){
+  $("#modalBody").innerHTML=`
+  <p>This interface is the <b>front-end and data model</b> for a living tree inventory — boundary masking, the editable tree layer, the ID registry, dashboard, coverage heatmap and exports are all real and working. It loads with <b>seeded sample data</b> along Orange's streets so you can explore it immediately.</p>
+  <p><b>Detect from imagery</b> runs a real, in-browser canopy detector: it reads pixels straight from the Esri satellite tiles, flags vegetation by Excess-Green (2G−R−B), groups pixels into blobs, and drops a tree at each canopy-sized blob. That's genuine detection from the actual imagery — but it's a color heuristic, so it's blind to species, misses shaded and overlapping crowns, and can catch large shrubs. Detections arrive as <b>Unknown · Needs Review</b> on purpose. For a production inventory, the same idea runs server-side with a trained model that's far more accurate:</p>
+  <p>Automatic detection from imagery can't run inside a browser page — it needs a server-side vision pipeline. Here's the honest, buildable version:</p>
+  <div class="pipe">
+    <div class="st"><div class="sn">STEP 01</div><div class="st">Get imagery</div><div class="sd">USDA <code>NAIP</code> (≈0.6 m, free) or NJ/Nearmap high-res. Tile it into ~256–512 px chips over the Orange boundary.</div></div>
+    <div class="st"><div class="sn">STEP 02</div><div class="st">Detect crowns</div><div class="sd"><code>DeepForest</code> (RetinaNet, MIT license) returns a bounding box + confidence per tree. ~7 min per km² on CPU. Fine-tune on ~150 local Orange crops for street trees.</div></div>
+    <div class="st"><div class="sn">STEP 03</div><div class="st">Measure &amp; snap</div><div class="sd">Estimate canopy dia./area from the box, snap each point to the nearest street centerline, assign a permanent <code>ORG-STR-######</code> ID.</div></div>
+    <div class="st"><div class="sn">STEP 04</div><div class="st">Load here</div><div class="sd">Export detector output as GeoJSON and drop it in place of the seed data. The whole UI already reads that schema.</div></div>
+  </div>
+  <h4>What to trust vs. treat as a hint</h4>
+  <ul>
+    <li><b>Reliable from overhead:</b> tree location, count, canopy diameter/area, maturity band.</li>
+    <li><b>Hint only:</b> species and DBH from RGB satellite are genuinely hard — always shown with confidence and flagged for field review. Don't put a bare "Red Oak, 74%" in a grant without verification.</li>
+  </ul>
+  <h4>Use authoritative datasets for anything official</h4>
+  <ul>
+    <li><b>Tree Equity Score</b> (American Forests) already publishes block-group canopy %, priority-planting need and equity scores for Orange — grant-ready: <a href="https://www.treeequityscore.org/insights/place/orange-nj" target="_blank">treeequityscore.org · Orange, NJ</a></li>
+    <li><b>i-Tree Landscape / Eco</b> (USDA Forest Service) for carbon, stormwater and cooling benefits: <a href="https://landscape.itreetools.org" target="_blank">itreetools.org</a></li>
+    <li>NJ DEP funds this work — 2023 Natural Climate Solutions grants put $24M toward urban tree planting statewide.</li>
+  </ul>
+  <h4>Change detection (your stretch goal)</h4>
+  <p>Re-run Steps 1–2 on each new imagery release, match new detections against the existing inventory by proximity, and flag <b>added / removed / grown / lost</b> trees for a human to confirm before the official record updates. That's a scheduled job comparing two GeoJSONs — very doable once Step 2 exists.</p>
+  <div style="text-align:right;margin-top:14px"><button class="btn" style="width:auto;padding:8px 18px" onclick="document.getElementById('modalwrap').classList.remove('open')">Got it</button></div>`;
+  $("#modalwrap").classList.add("open");
+}
+$("#modalwrap").onclick=e=>{if(e.target.id==="modalwrap")e.currentTarget.classList.remove("open");};
+
+/* ---- 19. Tabs ---- */
+document.querySelectorAll(".tab").forEach(tb=>tb.onclick=()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+  tb.classList.add("active"); currentTab=tb.dataset.tab; renderRail();
+});
+
+/* ---- 20. Boot ---- */
+seedInventory();
+renderRail();
+render();
+// Ensure the basemap actually paints once the container has real dimensions.
+function fixSize(){ map.invalidateSize(false); map.fitBounds(CITY_BOUNDS,{padding:[6,6]}); map.setMinZoom(Math.max(13,map.getZoom())); }
+setTimeout(fixSize, 60);
+setTimeout(()=>map.invalidateSize(false), 400);
+window.addEventListener("resize", ()=>map.invalidateSize(false));
+</script>
+</body>
+</html>
