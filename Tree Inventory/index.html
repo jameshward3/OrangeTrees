@@ -277,6 +277,8 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="./database-config.js"></script>
+<script src="./shared-database.js"></script>
 <script>
 /* =========================================================================
    ORANGE TREE INVENTORY — front-end reference build
@@ -800,6 +802,16 @@ function assignWard(lat,lng){
 /* ---- 3. Helpers ---- */
 const $ = s => document.querySelector(s);
 function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),1900);}
+function persistTree(t){
+  return window.orangeTreeDatabase.saveTree(t).catch(error=>{
+    console.error(error); toast("Saved locally, but database sync failed");
+  });
+}
+function persistAllTrees(){
+  return window.orangeTreeDatabase.saveTrees(TREES).catch(error=>{
+    console.error(error); toast("Detection finished, but database sync failed");
+  });
+}
 function rand(a,b){return a+Math.random()*(b-a);}
 function pick(a){return a[Math.floor(Math.random()*a.length)];}
 function lerp(p,q,t){return [p[0]+(q[0]-p[0])*t, p[1]+(q[1]-p[1])*t];}
@@ -901,6 +913,7 @@ function makeTree(ll,street,seeded){
   };
   if(!seeded){ t.history.push(logline("Created manually")); t.updated=today(); }
   TREES.push(t);
+  if(!seeded) persistTree(t);
   if(!seeded && typeof refreshInventory==="function") refreshInventory();
   return t;
 }
@@ -1060,6 +1073,7 @@ async function detectFromImagery(zoom, cityWide){
   hideProgress(); selected=null;
   render(); renderRail();
   markImageryMode(zoom, cityWide);
+  persistAllTrees();
   toast(`Detected ${n.toLocaleString()} canopies from imagery`);
 }
 function segmentTile(px, tx, ty, z, dedup, cellDeg){
@@ -1463,9 +1477,10 @@ function openDrawer(t){
     t.status=$("#edStatus").value; t.condition=$("#edCond").value; t.notes=$("#edNotes").value;
     t.abbr=(STREETS.find(s=>s.name===t.street)||{abbr:t.abbr}).abbr;
     t.updated=today(); t.history.push(logline("Edited attributes"));
+    persistTree(t);
     toast("Saved "+t.id); openDrawer(t); render();
   };
-  $("#edVerify").onclick=()=>{t.status="Verified";t.speciesConf=Math.max(t.speciesConf,90);t.updated=today();t.history.push(logline("Field verified"));toast("Verified");openDrawer(t);render();};
+  $("#edVerify").onclick=()=>{t.status="Verified";t.speciesConf=Math.max(t.speciesConf,90);t.updated=today();t.history.push(logline("Field verified"));persistTree(t);toast("Verified");openDrawer(t);render();};
   $("#edStatus").onchange=()=>{}; // applied on save
   $("#edMove").onclick=()=>startMove(t.id);
   $("#edDelete").onclick=()=>deleteTree(t.id);
@@ -1481,12 +1496,13 @@ function deleteTree(id){
   const i=TREES.findIndex(t=>t.id===id); if(i<0)return;
   const t=TREES[i]; t.status="Removed"; t.updated=today(); t.history.push(logline("Removed → archived"));
   ARCHIVE.push(t); TREES.splice(i,1);
+  window.orangeTreeDatabase.archiveTree(id).catch(error=>{console.error(error);toast("Archived locally, but database sync failed");});
   toast(id+" archived (ID retained)"); $("#drawer").classList.remove("open"); render(); refreshInventory();
 }
 function restoreTree(id){
   const i=ARCHIVE.findIndex(t=>t.id===id); if(i<0)return;
   const t=ARCHIVE[i]; t.status="Existing"; t.updated=today(); t.history.push(logline("Restored from archive"));
-  TREES.push(t); ARCHIVE.splice(i,1); toast(id+" restored"); render(); refreshInventory(); selectTree(id);
+  TREES.push(t); ARCHIVE.splice(i,1); persistTree(t); toast(id+" restored"); render(); refreshInventory(); selectTree(id);
 }
 function inBoundary(ll){
   // ray casting
@@ -1506,6 +1522,7 @@ map.on("click",e=>{
     t.lat=+ll[0].toFixed(6); t.lng=+ll[1].toFixed(6); t.updated=today(); t.history.push(logline("Moved point"));
     const ns=nearestStreet(ll); if(ns){t.street=ns.name;t.abbr=ns.abbr;}
     editMoveId=null; map.getContainer().style.cursor="";
+    persistTree(t);
     toast("Moved "+t.id); render(); openDrawer(t); return;
   }
   if(addMode){
@@ -1606,9 +1623,32 @@ document.querySelectorAll(".tab").forEach(tb=>tb.onclick=()=>{
 });
 
 /* ---- 20. Boot ---- */
-seedInventory();
-renderRail();
-render();
+async function boot(){
+  try{
+    const records=await window.orangeTreeDatabase.loadTrees();
+    if(records.length){
+      TREES=records.filter(t=>!t.archived && t.status!=="Removed");
+      ARCHIVE.push(...records.filter(t=>t.archived || t.status==="Removed"));
+      for(const t of records){
+        const match=String(t.id||"").match(/^ORG-([A-Z0-9]+)-(\d+)$/);
+        if(match) idCounters[match[1]]=Math.max(idCounters[match[1]]||0,Number(match[2]));
+      }
+      const rb=$("#sampleribbon");
+      if(rb) rb.innerHTML=`<b>SHARED DATABASE</b> — ${TREES.length.toLocaleString()} active trees loaded from OrangeTreeDatabase.`;
+      toast(`Loaded ${TREES.length.toLocaleString()} trees from the shared database`);
+    }else{
+      seedInventory();
+      toast("Shared database is empty — showing sample trees");
+    }
+  }catch(error){
+    console.error(error);
+    seedInventory();
+    toast("Database unavailable — showing sample trees");
+  }
+  renderRail();
+  render();
+}
+boot();
 // Ensure the basemap actually paints once the container has real dimensions.
 function fixSize(){ map.invalidateSize(false); map.fitBounds(CITY_BOUNDS,{padding:[6,6]}); map.setMinZoom(Math.max(13,map.getZoom())); }
 setTimeout(fixSize, 60);
