@@ -164,11 +164,66 @@
   .toast{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:2100;background:var(--bark);color:#fff;padding:9px 16px;border-radius:999px;font-size:12.5px;opacity:0;transition:.2s;pointer-events:none}
   .toast.show{opacity:1}
 
+  .mobonly{display:none}
+  .topbtn .ti{display:none}
+  .sheetgrab{display:none}
+  /* Mobile tree-inventory bottom sheet (shown only on mobile) */
+  #invSheet{display:none;flex-direction:column;position:fixed;left:0;right:0;bottom:0;z-index:1250;
+    background:var(--paper);border-radius:16px 16px 0 0;box-shadow:0 -8px 30px rgba(30,25,15,.30);
+    height:64px;overflow:hidden;transition:height .26s cubic-bezier(.2,.7,.2,1)}
+  #invSheet.half{height:33vh}
+  #invSheet.open{height:33vh}
+  .ish-head{display:flex;align-items:center;gap:10px;padding:11px 14px 10px;cursor:pointer;flex:0 0 auto;position:relative;border-bottom:1px solid var(--line)}
+  .ish-grab{position:absolute;top:6px;left:50%;transform:translateX(-50%);width:44px;height:5px;border-radius:3px;background:#cdc6b4}
+  .ish-title{font-family:var(--display);font-weight:700;font-size:13px;color:var(--canopy);margin-top:5px}
+  .ish-sub{font-size:11px;color:var(--ink-soft);margin-top:6px}
+  .ish-toggle{margin-left:auto;margin-top:5px;color:var(--ink-soft);transition:transform .22s;font-size:11px}
+  #invSheet.open .ish-toggle,#invSheet.half .ish-toggle{transform:rotate(180deg)}
+  .ish-body{flex:1;overflow-y:auto;padding:10px 12px 18px}
   @media (max-width:720px){
-    #rail{width:calc(100vw - 24px);bottom:auto;max-height:52vh}
-    #drawer{width:calc(100vw - 24px)}
+    .mobonly{display:inline-flex}
+    #topbar{height:52px;gap:7px;padding:0 8px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
+    #topbar::-webkit-scrollbar{display:none}
+    .brand{flex:0 0 auto}
+    #search{flex:0 0 auto}
+    .topbtn{flex:0 0 auto}
     .brand .sub{display:none}
-    #search input{width:150px}
+    .brand h1{display:none}
+    .brand .mark{width:22px;height:22px}
+    #search{margin-left:auto}
+    #search input{width:130px;max-width:36vw;padding:7px 10px 7px 28px}
+    .topbtn{padding:8px 10px;font-size:14px}
+    .topbtn .tl{display:none}
+    .topbtn .ti{display:inline}
+    .leaflet-control-zoom{margin-top:60px!important}
+
+    /* Left rail becomes a bottom sheet so it never covers the map */
+    #rail{
+      left:0;right:0;bottom:0;top:auto;width:100%;max-width:none;height:76vh;gap:8px;
+      padding:0 10px 12px;border-radius:16px 16px 0 0;background:var(--paper);
+      box-shadow:0 -8px 30px rgba(30,25,15,.30);overflow:hidden;
+      transform:translateY(103%);transition:transform .26s cubic-bezier(.2,.7,.2,1);z-index:1300
+    }
+    #rail.sheetopen{transform:translateY(0)}
+    #rail .panel{box-shadow:none}
+    .sheetgrab{display:block;height:5px;width:44px;border-radius:3px;background:#cdc6b4;margin:9px auto 3px;cursor:pointer;flex:0 0 auto}
+
+    /* Detail drawer becomes a bottom sheet too */
+    #drawer{
+      left:0;right:0;bottom:0;top:auto;width:100%;max-width:none;height:76vh;
+      transform:translateY(103%);transition:transform .26s cubic-bezier(.2,.7,.2,1);z-index:1360
+    }
+    #drawer.open{transform:translateY(0)}
+    #drawer .panel{border-radius:16px 16px 0 0}
+
+    #sampleribbon{left:8px;right:8px;bottom:8px;max-width:none;font-size:10px}
+    #modehint{top:56px}
+    #progress{top:56px}
+    #invSheet{display:flex}
+    #invPanel{display:none}
+    #sampleribbon{display:none}
+    .leaflet-bottom.leaflet-right{bottom:70px}
+    #modalwrap .modal{max-height:82vh}
   }
   /* ---------- Inventory accordion ---------- */
   .grp-toggle{display:flex;gap:6px;margin-bottom:9px}
@@ -217,16 +272,18 @@
     </div>
   </div>
   <div id="search"><span class="ico">⌕</span><input id="searchInput" placeholder="Search ID, street, species…" autocomplete="off"/></div>
-  <div class="topbtn" id="btnDetect" style="background:rgba(143,214,166,.16);border-color:rgba(143,214,166,.5)">◎ Detect from imagery</div>
-  <div class="topbtn" id="btnAdd">＋ Add tree</div>
-  <div class="topbtn" id="btnExport">⤓ Export</div>
-  <div class="topbtn warn" id="btnAbout">How detection works</div>
+  <div class="topbtn mobonly" id="btnMenu"><span class="ti">☰</span><span class="tl">Panels</span></div>
+  <div class="topbtn" id="btnDetect" style="background:rgba(143,214,166,.16);border-color:rgba(143,214,166,.5)"><span class="ti">◎</span><span class="tl">◎ Detect from imagery</span></div>
+  <div class="topbtn" id="btnAdd"><span class="ti">＋</span><span class="tl">＋ Add tree</span></div>
+  <div class="topbtn" id="btnExport"><span class="ti">⤓</span><span class="tl">⤓ Export</span></div>
+  <div class="topbtn warn" id="btnAbout"><span class="ti">?</span><span class="tl">How detection works</span></div>
 </div>
 
 <div id="modehint">Add mode — click a location inside Orange to place a tree. Press Esc to exit.</div>
 
 <!-- LEFT RAIL -->
 <div id="rail">
+  <div class="sheetgrab" id="railGrab"></div>
   <div class="panel" style="flex:0 0 auto">
     <div class="tabs">
       <div class="tab active" data-tab="dash">Dashboard</div>
@@ -251,6 +308,17 @@
     <div class="mh"><h3>How the tree inventory is actually built</h3></div>
     <div class="mc" id="modalBody"></div>
   </div>
+</div>
+
+<!-- MOBILE: persistent tree-inventory bottom sheet -->
+<div id="invSheet">
+  <div class="ish-head" id="ishHead">
+    <div class="ish-grab"></div>
+    <div class="ish-title">Tree inventory</div>
+    <div class="ish-sub" id="ishCount">—</div>
+    <div class="ish-toggle">▲</div>
+  </div>
+  <div class="ish-body" id="invSheetBody"></div>
 </div>
 
 <div id="sampleribbon">
@@ -885,7 +953,7 @@ function makeTree(ll,street,seeded){
   };
   if(!seeded){ t.history.push(logline("Created manually")); t.updated=today(); }
   TREES.push(t);
-  if(!seeded && typeof refreshInventory==="function") refreshInventory();
+  if(!seeded){ if(typeof refreshInventory==="function") refreshInventory(); if(WRITE_TOKEN_MEM) dbPut(t); }
   return t;
 }
 function today(){return new Date().toISOString().slice(0,10);}
@@ -965,13 +1033,22 @@ function selectTree(id){
   const t=TREES.find(x=>x.id===id)||ARCHIVE.find(x=>x.id===id);
   if(!t)return;
   map.setView([t.lat,t.lng], Math.max(map.getZoom(),18), {animate:true});
+  if(window.matchMedia("(max-width:720px)").matches){ $("#rail").classList.remove("sheetopen"); collapseInvSheet(); }
   openDrawer(t);
   render();
 }
-function zoomToTrees(list,fallbackZoom){
-  const pts=list.map(t=>[t.lat,t.lng]);
-  if(pts.length>1){ map.flyToBounds(L.latLngBounds(pts).pad(0.25),{maxZoom:18,duration:.6}); }
-  else if(pts.length===1){ map.flyTo(pts[0],fallbackZoom||18,{duration:.6}); }
+function setInvSheet(state){ const s=$("#invSheet"); if(!s)return;
+  s.classList.toggle("open", state==="open"); s.classList.toggle("half", state==="half"); }
+function collapseInvSheet(){ setInvSheet("peek"); }
+function invSheetPx(){ const s=$("#invSheet"); if(!s||getComputedStyle(s).display==="none") return 0;
+  if(s.classList.contains("open")) return Math.round(innerHeight*0.33);
+  if(s.classList.contains("half")) return Math.round(innerHeight*0.33);
+  return 66; }
+function mapPad(){ return {paddingTopLeft:[16,66], paddingBottomRight:[16, invSheetPx()+12]}; }
+function zoomToTrees(list){
+  const pts=list.map(t=>[t.lat,t.lng]); if(!pts.length)return;
+  if(pts.length===1){ map.flyTo(pts[0],18,{duration:.55}); return; }
+  map.flyToBounds(L.latLngBounds(pts).pad(0.2), Object.assign({maxZoom:18,duration:.55}, mapPad()));
 }
 function zoomToStreet(name){ zoomToTrees(TREES.filter(t=>t.street===name)); }
 function zoomToWard(w){ zoomToTrees(TREES.filter(t=>t.ward===w)); }
@@ -1121,6 +1198,7 @@ function showProgress(done,total,label){
 }
 function hideProgress(){ const el=$("#progress"); if(el) el.style.display="none"; }
 function markImageryMode(zoom, cityWide){
+  dataSource="imagery";
   const rb=$("#sampleribbon");
   if(rb) rb.innerHTML=`<b style="color:#8fd6a6">IMAGERY-DETECTED</b> · ${TREES.length.toLocaleString()} canopies
     (zoom ${zoom}${cityWide?", city-wide":", current view"}). Heuristic — species/condition need field review.
@@ -1240,16 +1318,17 @@ function buildDash(){
 /* ---- 11b. Collapsible inventory browser (by ward / by street) ---- */
 let invGroup="Ward";
 function esc(s){return String(s).replace(/"/g,"&quot;");}
+function invHosts(){ return ["#invBody","#invSheetBody"].map(s=>$(s)).filter(Boolean); }
 function buildInventory(){
-  const host=$("#invBody"); if(!host)return;
+  const hosts=invHosts(); if(!hosts.length)return;
   const g={}; for(const t of TREES){const k=invGroup==="Ward"?t.ward:t.street;(g[k]=g[k]||[]).push(t);}
   const order = invGroup==="Ward" ? WARDS.filter(w=>g[w]) : Object.keys(g).sort();
-  host.innerHTML=`
+  const html=`
     <div class="grp-toggle">
       <div class="gt ${invGroup==="Ward"?"on":""}" data-g="Ward">By ward</div>
       <div class="gt ${invGroup==="Street"?"on":""}" data-g="Street">By street</div>
     </div>
-    <div class="note" style="margin:-2px 0 9px">${TREES.length.toLocaleString()} trees · tap a header to expand, ⌖ to zoom, a row to open</div>
+    <div class="note" style="margin:-2px 0 9px">Tap a ${invGroup==="Ward"?"ward":"street"} to zoom in · ⌖ to zoom · a row opens a tree</div>
     ${order.map(k=>`
       <div class="acc" data-key="${esc(k)}" data-type="${invGroup}">
         <div class="acch" data-role="head">
@@ -1261,6 +1340,8 @@ function buildInventory(){
         </div>
         <div class="accc" data-role="body"></div>
       </div>`).join("")}`;
+  hosts.forEach(h=>h.innerHTML=html);
+  const cnt=$("#ishCount"); if(cnt) cnt.textContent=`${TREES.length.toLocaleString()} trees`;
 }
 function rowHTML(t){
   return `<div class="trow" data-id="${t.id}">
@@ -1286,23 +1367,29 @@ function fillAccBody(acc,type,key){
     body.innerHTML=list.map(rowHTML).join("");
   }
 }
-function wireInventory(){
-  const host=$("#invBody"); if(!host)return;
-  host.onclick=(e)=>{
-    const gt=e.target.closest(".gt"); if(gt){invGroup=gt.dataset.g;buildInventory();return;}
-    const trow=e.target.closest(".trow"); if(trow){selectTree(trow.dataset.id);return;}
-    const acc=e.target.closest(".acc"); if(!acc)return;
-    const key=acc.dataset.key, type=acc.dataset.type;
-    if(e.target.closest('[data-role="zoom"]')){ type==="Ward"?zoomToWard(key):zoomToStreet(key); return; }
-    const head=acc.querySelector(':scope > .acch');
-    const body=acc.querySelector(':scope > [data-role="body"]');
-    if(head && body){
-      const open=body.classList.toggle("open"); head.classList.toggle("open",open);
-      if(open && !body.dataset.filled){ fillAccBody(acc,type,key); body.dataset.filled="1"; }
+function invClick(e){
+  const gt=e.target.closest(".gt"); if(gt){invGroup=gt.dataset.g;buildInventory();return;}
+  const trow=e.target.closest(".trow"); if(trow){selectTree(trow.dataset.id);return;}
+  const acc=e.target.closest(".acc"); if(!acc)return;
+  const key=acc.dataset.key, type=acc.dataset.type;
+  const mob=window.matchMedia("(max-width:720px)").matches;
+  if(e.target.closest('[data-role="zoom"]')){
+    if(mob) collapseInvSheet();                       // pure "show me this area"
+    type==="Ward"?zoomToWard(key):zoomToStreet(key); return;
+  }
+  const head=acc.querySelector(':scope > .acch');
+  const body=acc.querySelector(':scope > [data-role="body"]');
+  if(head && body){
+    const open=body.classList.toggle("open"); head.classList.toggle("open",open);
+    if(open){
+      if(!body.dataset.filled){ fillAccBody(acc,type,key); body.dataset.filled="1"; }
+      if(mob) setInvSheet("half");                     // drop the sheet so the map shows
+      type==="Ward"?zoomToWard(key):zoomToStreet(key); // zoom into the ward/street on selection
     }
-  };
+  }
 }
-function refreshInventory(){ if($("#invBody")) buildInventory(); }
+function wireInventory(){ invHosts().forEach(h=>{ h.onclick=invClick; }); }
+function refreshInventory(){ if(invHosts().length) buildInventory(); }
 
 /* ---- 12. Rail tab content ---- */
 let currentTab="dash";
@@ -1311,7 +1398,7 @@ function renderRail(){
   if(currentTab==="dash"){
     rail.innerHTML=`
       <div class="panel"><h2>Municipal dashboard<span style="font-weight:600;color:var(--ink-soft);text-transform:none;letter-spacing:0">live</span></h2><div class="body" id="dashBody"></div></div>
-      <div class="panel"><h2>Tree inventory<span style="font-weight:600;color:var(--ink-soft);text-transform:none;letter-spacing:0">by ward &amp; street</span></h2><div class="body" id="invBody"></div></div>`;
+      <div class="panel" id="invPanel"><h2>Tree inventory<span style="font-weight:600;color:var(--ink-soft);text-transform:none;letter-spacing:0">by ward &amp; street</span></h2><div class="body" id="invBody"></div></div>`;
     buildDash();
     buildInventory();
     wireInventory();
@@ -1340,6 +1427,12 @@ function renderRail(){
       <div class="row"><label>Canopy coverage heatmap</label><label class="switch"><input type="checkbox" id="heatToggle"><span class="track"></span></label></div>
       <div class="field" id="gridWrap" style="display:none"><div class="flabel">Heatmap grid cell</div>
         <select id="gridSel"><option value="25">25 ft</option><option value="50">50 ft</option><option value="100" selected>100 ft</option><option value="250">250 ft</option></select></div>
+    </div></div>
+    <div class="panel"><h2>Live database</h2><div class="body">
+      <p class="note" id="dbStatus" style="margin:0 0 8px">● connecting…</p>
+      <p class="note" style="margin:0 0 9px">Reads the shared Orange tree record (updated by CanopyQuest field verifications &amp; additions). Local edits stay on your device unless you connect write access.</p>
+      <button class="btn" id="dbSync">Sync now</button>
+      <button class="btn ghost" id="dbWrite" style="margin-top:7px">Connect write access (editors)</button>
     </div></div>
     <div class="panel"><h2>Detect from imagery</h2><div class="body">
       <p class="note" style="margin:0 0 9px">Reads the satellite basemap and plots a tree at every canopy it finds. Heuristic vegetation detection — results come in as <b>Unknown · Needs Review</b>.</p>
@@ -1384,8 +1477,10 @@ function wireLayers(){
   const dz=$("#detZoom"); if(dz){ dz.value=String(detectZoom); dz.onchange=e=>{detectZoom=+e.target.value;}; }
   if($("#detCity")) $("#detCity").onclick=()=>detectFromImagery(detectZoom,true);
   if($("#detView")) $("#detView").onclick=()=>detectFromImagery(Math.max(detectZoom,18),false);
-  if($("#detReset")) $("#detReset").onclick=()=>{seedInventory();render();renderRail();
-    const rb=$("#sampleribbon"); if(rb){rb.innerHTML=SAMPLE_RIBBON;wireRibbon();} toast("Reset to sample data");};
+  if($("#detReset")) $("#detReset").onclick=()=>{seedInventory();dataSource="sample";render();renderRail();setDbStatus("sample data loaded","sample");toast("Reset to sample data");};
+  if($("#dbSync")) $("#dbSync").onclick=()=>loadFromDatabase({});
+  if($("#dbWrite")) $("#dbWrite").onclick=()=>{ const tok=prompt("Paste the OrangeTreeDatabase WRITE_TOKEN to save edits to the shared database.\nKept in memory only, never stored.",""); if(tok===null) return; WRITE_TOKEN_MEM=tok.trim(); toast(WRITE_TOKEN_MEM?"Write access on — edits will sync to the database":"Write access off"); };
+  const dbst=$("#dbStatus"); if(dbst) dbst.textContent = dataSource==="live"?"● Live · connected":dataSource==="imagery"?"● Local imagery detections (not from DB)":"● Sample data (not synced)";
 }
 
 /* ---- 13. Detail / edit drawer ---- */
@@ -1447,14 +1542,18 @@ function openDrawer(t){
     t.status=$("#edStatus").value; t.condition=$("#edCond").value; t.notes=$("#edNotes").value;
     t.abbr=(STREETS.find(s=>s.name===t.street)||{abbr:t.abbr}).abbr;
     t.updated=today(); t.history.push(logline("Edited attributes"));
-    toast("Saved "+t.id); openDrawer(t); render();
+    if(WRITE_TOKEN_MEM) dbPut(t); toast("Saved "+t.id+(WRITE_TOKEN_MEM?" · syncing":"")); openDrawer(t); render();
   };
-  $("#edVerify").onclick=()=>{t.status="Verified";t.speciesConf=Math.max(t.speciesConf,90);t.updated=today();t.history.push(logline("Field verified"));toast("Verified");openDrawer(t);render();};
+  $("#edVerify").onclick=()=>{t.status="Verified";t.speciesConf=Math.max(t.speciesConf,90);t.updated=today();t.history.push(logline("Field verified"));if(WRITE_TOKEN_MEM) dbPut(t);toast("Verified");openDrawer(t);render();};
   $("#edStatus").onchange=()=>{}; // applied on save
   $("#edMove").onclick=()=>startMove(t.id);
   $("#edDelete").onclick=()=>deleteTree(t.id);
 }
 $("#drawerClose").onclick=()=>{$("#drawer").classList.remove("open");selected=null;render();};
+const isMobile=()=>window.matchMedia("(max-width:720px)").matches;
+$("#btnMenu").onclick=()=>{ const open=$("#rail").classList.toggle("sheetopen"); if(open)$("#drawer").classList.remove("open"); };
+if($("#railGrab")) $("#railGrab").onclick=()=>$("#rail").classList.remove("sheetopen");
+$("#ishHead").onclick=()=>{ const s=$("#invSheet"); const exp=s.classList.contains("open")||s.classList.contains("half"); setInvSheet(exp?"peek":"open"); };
 
 /* ---- 14. Move / add / delete / restore ---- */
 function startMove(id){
@@ -1464,13 +1563,13 @@ function startMove(id){
 function deleteTree(id){
   const i=TREES.findIndex(t=>t.id===id); if(i<0)return;
   const t=TREES[i]; t.status="Removed"; t.updated=today(); t.history.push(logline("Removed → archived"));
-  ARCHIVE.push(t); TREES.splice(i,1);
+  ARCHIVE.push(t); TREES.splice(i,1); if(WRITE_TOKEN_MEM) dbDelete(id);
   toast(id+" archived (ID retained)"); $("#drawer").classList.remove("open"); render(); refreshInventory();
 }
 function restoreTree(id){
   const i=ARCHIVE.findIndex(t=>t.id===id); if(i<0)return;
   const t=ARCHIVE[i]; t.status="Existing"; t.updated=today(); t.history.push(logline("Restored from archive"));
-  TREES.push(t); ARCHIVE.splice(i,1); toast(id+" restored"); render(); refreshInventory(); selectTree(id);
+  TREES.push(t); ARCHIVE.splice(i,1); if(WRITE_TOKEN_MEM) dbPut(t); toast(id+" restored"); render(); refreshInventory(); selectTree(id);
 }
 function inBoundary(ll){
   // ray casting
@@ -1484,6 +1583,7 @@ function inBoundary(ll){
 }
 map.on("click",e=>{
   const ll=[e.latlng.lat,e.latlng.lng];
+  if(!addMode && !editMoveId && window.matchMedia("(max-width:720px)").matches){ $("#rail").classList.remove("sheetopen"); }
   if(editMoveId){
     if(!inBoundary(ll)){toast("Point must be inside Orange");return;}
     const t=TREES.find(x=>x.id===editMoveId);
@@ -1557,6 +1657,8 @@ $("#btnDetect").onclick=()=>{
 function openAbout(){
   $("#modalBody").innerHTML=`
   <p>This interface is the <b>front-end and data model</b> for a living tree inventory — boundary masking, the editable tree layer, the ID registry, dashboard, coverage heatmap and exports are all real and working. It loads with <b>seeded sample data</b> along Orange's streets so you can explore it immediately.</p>
+  <h4>Live database</h4>
+  <p>On load the app pulls the shared <b>OrangeTreeDatabase</b> (<code>/v1/trees</code>) — the same record <b>CanopyQuest</b> updates with field verifications and new trees — so the index always reflects the latest ground truth. If the database can't be reached (e.g. the page's origin isn't in its <code>ALLOWED_ORIGINS</code>), it falls back to sample data and says so. Editors can enable saving back to the shared record under <b>Layers ▸ Live database ▸ Connect write access</b> by supplying the write token at runtime; it's held in memory only and never stored in the page.</p>
   <p><b>Detect from imagery</b> runs a real, in-browser canopy detector: it reads pixels straight from the Esri satellite tiles, flags vegetation by Excess-Green (2G−R−B), groups pixels into blobs, and drops a tree at each canopy-sized blob. That's genuine detection from the actual imagery — but it's a color heuristic, so it's blind to species, misses shaded and overlapping crowns, and can catch large shrubs. Detections arrive as <b>Unknown · Needs Review</b> on purpose. For a production inventory, the same idea runs server-side with a trained model that's far more accurate:</p>
   <p>Automatic detection from imagery can't run inside a browser page — it needs a server-side vision pipeline. Here's the honest, buildable version:</p>
   <div class="pipe">
@@ -1589,10 +1691,116 @@ document.querySelectorAll(".tab").forEach(tb=>tb.onclick=()=>{
   tb.classList.add("active"); currentTab=tb.dataset.tab; renderRail();
 });
 
+/* ---- 19b. Live database integration (OrangeTreeDatabase / Vercel + Neon) -----
+   Source of truth: https://github.com/jameshward3/OrangeTreeDatabase
+     GET    {base}/v1/trees        -> { trees:[ {...payload, archived, source, updatedAt} ] }
+     PUT    {base}/v1/trees/:id    -> upsert  (Authorization: Bearer <WRITE_TOKEN>)
+     DELETE {base}/v1/trees/:id    -> archive (Authorization: Bearer <WRITE_TOKEN>)
+   CanopyQuest writes field verifications/findings to the same record; this app
+   READS the shared inventory so the index always reflects those contributions.
+   Writes from here are OFF unless an authorized editor supplies a token at
+   runtime (memory only, never hard-coded) — matching the DB's security model. */
+const DB_BASE  = "https://orange-tree-database.vercel.app";
+const DB_TREES = DB_BASE + "/v1/trees";
+let dataSource = "sample";     // 'sample' | 'live' | 'imagery'
+let WRITE_TOKEN_MEM = "";      // set at runtime by an authorized editor; not persisted
+
+function normalizeDbTree(r){
+  const lat=+r.lat, lng=+r.lng;
+  if(!isFinite(lat)||!isFinite(lng)) return null;
+  const canopy=+(r.canopy)||0;
+  let street=r.street, abbr=r.abbr;
+  if(!street){ const ns=nearestStreet([lat,lng]); street=ns.name; abbr=ns.abbr; }
+  if(!abbr){ abbr=(STREETS.find(s=>s.name===street)||{abbr:"ORG"}).abbr; }
+  return {
+    id:String(r.id), street, abbr, ward:r.ward||assignWard(lat,lng),
+    lat:+lat.toFixed(6), lng:+lng.toFixed(6),
+    species:r.species||"Unknown",
+    speciesConf:Math.round(+(r.speciesConf ?? r.species_confidence ?? 0))||0,
+    canopy, canopyArea:r.canopyArea ?? canopyArea(canopy||8),
+    dbh:r.dbh ?? estDBH(canopy||8), height:r.height ?? estHeight(canopy||8, r.species||"Unknown"),
+    maturity:r.maturity||maturity(canopy||8), condition:r.condition||"Unknown",
+    status:r.status||"Needs Review",
+    updated:String(r.updated||r.updatedAt||today()).slice(0,10),
+    notes:r.notes||"", history:Array.isArray(r.history)?r.history:[],
+    source:r.source||"database", dbSynced:true
+  };
+}
+function rebuildIdCounters(){
+  for(const k in idCounters) delete idCounters[k];
+  for(const t of TREES){ const m=/^ORG-([A-Za-z0-9]+)-(\d+)$/.exec(t.id||"");
+    if(m){ const a=m[1], n=+m[2]; if(!idCounters[a]||n>idCounters[a]) idCounters[a]=n; } }
+}
+async function loadFromDatabase(opts){
+  opts=opts||{};
+  setDbStatus("contacting live database…","load");
+  try{
+    const res=await fetch(DB_TREES,{headers:{"Accept":"application/json"},cache:"no-store"});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const data=await res.json();
+    const raw=Array.isArray(data.trees)?data.trees:(Array.isArray(data)?data:[]);
+    const mapped=raw.map(normalizeDbTree).filter(Boolean);
+    TREES=mapped; ARCHIVE.length=0; rebuildIdCounters();
+    dataSource="live"; selected=null;
+    render(); renderRail();
+    setDbStatus(`${TREES.length.toLocaleString()} trees synced`,"live");
+    if(!opts.quiet) toast(`Synced ${TREES.length.toLocaleString()} trees from the live database`);
+    return TREES.length;
+  }catch(err){
+    if(opts.seedIfEmpty && dataSource!=="live"){ seedInventory(); render(); renderRail(); }
+    setDbStatus(cxMsg(err),"error");
+    if(!opts.quiet) toast("Couldn't reach the live database — see Layers ▸ Live database");
+    throw err;
+  }
+}
+function cxMsg(err){
+  const m=String((err&&err.message)||err);
+  if(/Failed to fetch|NetworkError|CORS|TypeError/i.test(m))
+    return "unreachable from this origin — add this app's URL to the DB's ALLOWED_ORIGINS";
+  return m;
+}
+function stripForDb(t){ const c=Object.assign({},t); delete c._m; delete c.dbSynced; return c; }
+async function dbPut(t){
+  if(!WRITE_TOKEN_MEM) return false;
+  try{
+    const res=await fetch(DB_TREES+"/"+encodeURIComponent(t.id),{
+      method:"PUT", cache:"no-store",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+WRITE_TOKEN_MEM},
+      body:JSON.stringify(Object.assign(stripForDb(t),{source:"orangetrees"}))});
+    if(res.status===401){ toast("Write denied — check the token"); return false; }
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    return true;
+  }catch(e){ toast("DB write failed — kept locally"); return false; }
+}
+async function dbDelete(id){
+  if(!WRITE_TOKEN_MEM) return false;
+  try{
+    const res=await fetch(DB_TREES+"/"+encodeURIComponent(id),{
+      method:"DELETE", cache:"no-store", headers:{"Authorization":"Bearer "+WRITE_TOKEN_MEM}});
+    return res.ok || res.status===204;
+  }catch(e){ return false; }
+}
+function setDbStatus(msg,tone){
+  const badge = tone==="live" ? `<b style="color:#8fd6a6">LIVE DATABASE</b>`
+             : tone==="error"? `<b style="color:#e0a23a">DATABASE OFFLINE</b>`
+             : tone==="load" ? `<b style="color:#cbd8cf">SYNCING…</b>`
+             : `<b style="color:#f4c778">SAMPLE DATA</b>`;
+  const rb=$("#sampleribbon");
+  if(rb){ rb.innerHTML = `${badge} — ${msg} · <a href="#" id="ribbonSync">sync</a> · <a href="#" id="ribbonAbout">about</a>`;
+    const s=$("#ribbonSync"); if(s) s.onclick=e=>{e.preventDefault();loadFromDatabase({});};
+    const a=$("#ribbonAbout"); if(a) a.onclick=e=>{e.preventDefault();openAbout();}; }
+  const dbst=$("#dbStatus"); if(dbst) dbst.textContent =
+    (tone==="live"?"● Live · ":tone==="error"?"● Offline · ":"● ")+msg;
+  const cnt=$("#ishCount"); if(cnt) cnt.textContent =
+    (tone==="live"?"live · ":tone==="error"?"offline · ":"")+TREES.length.toLocaleString()+" trees";
+}
+
 /* ---- 20. Boot ---- */
 seedInventory();
 renderRail();
 render();
+// Instantly show sample data, then pull the live shared inventory (CanopyQuest-updated).
+loadFromDatabase({quiet:true, seedIfEmpty:false}).catch(()=>{});
 // Ensure the basemap actually paints once the container has real dimensions.
 function fixSize(){ map.invalidateSize(false); map.fitBounds(CITY_BOUNDS,{padding:[6,6]}); map.setMinZoom(Math.max(13,map.getZoom())); }
 setTimeout(fixSize, 60);
