@@ -180,12 +180,14 @@
   .topbtn .ti{display:none}
   .sheetgrab{display:none}
   /* Mobile tree-inventory bottom sheet (shown only on mobile) */
-  #invSheet{display:none;flex-direction:column;position:fixed;left:0;right:0;bottom:0;z-index:1250;
+  #invSheet{display:none;flex-direction:column;position:fixed;left:0;right:0;
+    bottom:calc(env(safe-area-inset-bottom, 0px) + 6px);z-index:1250;
     background:var(--paper);border-radius:16px 16px 0 0;box-shadow:0 -8px 30px rgba(30,25,15,.30);
-    height:64px;overflow:hidden;transition:height .26s cubic-bezier(.2,.7,.2,1)}
+    height:92px;overflow:hidden;transition:height .24s cubic-bezier(.2,.7,.2,1)}
   #invSheet.half{height:33vh}
   #invSheet.open{height:33vh}
-  .ish-head{display:flex;align-items:center;gap:10px;padding:11px 14px 10px;cursor:pointer;flex:0 0 auto;position:relative;border-bottom:1px solid var(--line)}
+  .ish-head{display:flex;align-items:center;gap:10px;padding:14px 14px 12px;cursor:grab;flex:0 0 auto;position:relative;border-bottom:1px solid var(--line);touch-action:none;user-select:none;-webkit-user-select:none}
+  .ish-head:active{cursor:grabbing}
   .ish-grab{position:absolute;top:6px;left:50%;transform:translateX(-50%);width:44px;height:5px;border-radius:3px;background:#cdc6b4}
   .ish-title{font-family:var(--display);font-weight:700;font-size:13px;color:var(--canopy);margin-top:5px}
   .ish-sub{font-size:11px;color:var(--ink-soft);margin-top:6px}
@@ -1053,14 +1055,31 @@ function selectTree(id){
   openDrawer(t);
   render();
 }
-function setInvSheet(state){ const s=$("#invSheet"); if(!s)return;
-  s.classList.toggle("open", state==="open"); s.classList.toggle("half", state==="half"); }
-function collapseInvSheet(){ setInvSheet("peek"); }
-function invSheetPx(){ const s=$("#invSheet"); if(!s||getComputedStyle(s).display==="none") return 0;
-  if(s.classList.contains("open")) return Math.round(innerHeight*0.33);
-  if(s.classList.contains("half")) return Math.round(innerHeight*0.33);
-  return 66; }
-function mapPad(){ return {paddingTopLeft:[16,66], paddingBottomRight:[16, invSheetPx()+12]}; }
+const INV_MIN=92;                                   // peek height (clears the browser bar)
+function invMaxH(){ return Math.round(innerHeight*0.62); }   // never cover more than ~2/3
+function invSteps(){ return [INV_MIN, Math.round(innerHeight*0.34), Math.round(innerHeight*0.58)]; }
+function invHeightNow(){ const s=$("#invSheet"); return s?Math.round(s.getBoundingClientRect().height):0; }
+function setInvHeight(px){ const s=$("#invSheet"); if(!s)return;
+  s.classList.remove("open","half");
+  s.style.height = Math.max(INV_MIN, Math.min(invMaxH(), Math.round(px))) + "px"; }
+function setInvSheet(state){ if(state==="open") setInvHeight(invSteps()[2]);
+  else if(state==="half") setInvHeight(invSteps()[1]); else setInvHeight(INV_MIN); }
+function collapseInvSheet(){ setInvHeight(INV_MIN); }
+function bounceInvSheet(){ const cur=invHeightNow(), S=invSteps();
+  let next=S.find(v=>v>cur+10); if(next==null) next=S[0]; setInvHeight(next); }   // tap hops up a step, wraps to peek
+function invSheetPx(){ const s=$("#invSheet"); if(!s||getComputedStyle(s).display==="none") return 0; return invHeightNow(); }
+function mapPad(){ return {paddingTopLeft:[16,72], paddingBottomRight:[16, invSheetPx()+14]}; }
+function initInvSheetDrag(){
+  const head=$("#ishHead"); if(!head||head._dragInit) return; head._dragInit=true;
+  let sy=null, sh=0, moved=false;
+  head.addEventListener("pointerdown", e=>{ sy=e.clientY; sh=invHeightNow(); moved=false;
+    const s=$("#invSheet"); if(s) s.style.transition="none"; try{head.setPointerCapture(e.pointerId);}catch(_){}}, {passive:true});
+  head.addEventListener("pointermove", e=>{ if(sy==null)return; const dy=sy-e.clientY;
+    if(Math.abs(dy)>4) moved=true; if(moved){ setInvHeight(sh+dy); e.preventDefault(); } }, {passive:false});
+  const end=()=>{ const s=$("#invSheet"); if(s) s.style.transition="";
+    if(sy!=null && !moved) bounceInvSheet(); sy=null; };            // a plain tap bounces it higher
+  head.addEventListener("pointerup", end); head.addEventListener("pointercancel", end);
+}
 function zoomToTrees(list){
   const pts=list.map(t=>[t.lat,t.lng]); if(!pts.length)return;
   if(pts.length===1){ map.flyTo(pts[0],18,{duration:.55}); return; }
@@ -1569,7 +1588,7 @@ $("#drawerClose").onclick=()=>{$("#drawer").classList.remove("open");selected=nu
 const isMobile=()=>window.matchMedia("(max-width:720px)").matches;
 $("#btnMenu").onclick=()=>{ const open=$("#rail").classList.toggle("sheetopen"); if(open)$("#drawer").classList.remove("open"); };
 if($("#railGrab")) $("#railGrab").onclick=()=>$("#rail").classList.remove("sheetopen");
-$("#ishHead").onclick=()=>{ const s=$("#invSheet"); const exp=s.classList.contains("open")||s.classList.contains("half"); setInvSheet(exp?"peek":"open"); };
+initInvSheetDrag(); if(window.matchMedia("(max-width:720px)").matches) setInvHeight(INV_MIN);
 
 /* ---- 14. Move / add / delete / restore ---- */
 function startMove(id){
