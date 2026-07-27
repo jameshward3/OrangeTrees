@@ -953,7 +953,7 @@ function makeTree(ll,street,seeded){
   };
   if(!seeded){ t.history.push(logline("Created manually")); t.updated=today(); }
   TREES.push(t);
-  if(!seeded && typeof refreshInventory==="function") refreshInventory();
+  if(!seeded){ if(typeof refreshInventory==="function") refreshInventory(); if(WRITE_TOKEN_MEM) dbPut(t); }
   return t;
 }
 function today(){return new Date().toISOString().slice(0,10);}
@@ -1198,6 +1198,7 @@ function showProgress(done,total,label){
 }
 function hideProgress(){ const el=$("#progress"); if(el) el.style.display="none"; }
 function markImageryMode(zoom, cityWide){
+  dataSource="imagery";
   const rb=$("#sampleribbon");
   if(rb) rb.innerHTML=`<b style="color:#8fd6a6">IMAGERY-DETECTED</b> · ${TREES.length.toLocaleString()} canopies
     (zoom ${zoom}${cityWide?", city-wide":", current view"}). Heuristic — species/condition need field review.
@@ -1427,6 +1428,12 @@ function renderRail(){
       <div class="field" id="gridWrap" style="display:none"><div class="flabel">Heatmap grid cell</div>
         <select id="gridSel"><option value="25">25 ft</option><option value="50">50 ft</option><option value="100" selected>100 ft</option><option value="250">250 ft</option></select></div>
     </div></div>
+    <div class="panel"><h2>Live database</h2><div class="body">
+      <p class="note" id="dbStatus" style="margin:0 0 8px">● connecting…</p>
+      <p class="note" style="margin:0 0 9px">Reads the shared Orange tree record (updated by CanopyQuest field verifications &amp; additions). Local edits stay on your device unless you connect write access.</p>
+      <button class="btn" id="dbSync">Sync now</button>
+      <button class="btn ghost" id="dbWrite" style="margin-top:7px">Connect write access (editors)</button>
+    </div></div>
     <div class="panel"><h2>Detect from imagery</h2><div class="body">
       <p class="note" style="margin:0 0 9px">Reads the satellite basemap and plots a tree at every canopy it finds. Heuristic vegetation detection — results come in as <b>Unknown · Needs Review</b>.</p>
       <div class="field"><div class="flabel">Detail level</div>
@@ -1470,8 +1477,10 @@ function wireLayers(){
   const dz=$("#detZoom"); if(dz){ dz.value=String(detectZoom); dz.onchange=e=>{detectZoom=+e.target.value;}; }
   if($("#detCity")) $("#detCity").onclick=()=>detectFromImagery(detectZoom,true);
   if($("#detView")) $("#detView").onclick=()=>detectFromImagery(Math.max(detectZoom,18),false);
-  if($("#detReset")) $("#detReset").onclick=()=>{seedInventory();render();renderRail();
-    const rb=$("#sampleribbon"); if(rb){rb.innerHTML=SAMPLE_RIBBON;wireRibbon();} toast("Reset to sample data");};
+  if($("#detReset")) $("#detReset").onclick=()=>{seedInventory();dataSource="sample";render();renderRail();setDbStatus("sample data loaded","sample");toast("Reset to sample data");};
+  if($("#dbSync")) $("#dbSync").onclick=()=>loadFromDatabase({});
+  if($("#dbWrite")) $("#dbWrite").onclick=()=>{ const tok=prompt("Paste the OrangeTreeDatabase WRITE_TOKEN to save edits to the shared database.\nKept in memory only, never stored.",""); if(tok===null) return; WRITE_TOKEN_MEM=tok.trim(); toast(WRITE_TOKEN_MEM?"Write access on — edits will sync to the database":"Write access off"); };
+  const dbst=$("#dbStatus"); if(dbst) dbst.textContent = dataSource==="live"?"● Live · connected":dataSource==="imagery"?"● Local imagery detections (not from DB)":"● Sample data (not synced)";
 }
 
 /* ---- 13. Detail / edit drawer ---- */
@@ -1533,9 +1542,9 @@ function openDrawer(t){
     t.status=$("#edStatus").value; t.condition=$("#edCond").value; t.notes=$("#edNotes").value;
     t.abbr=(STREETS.find(s=>s.name===t.street)||{abbr:t.abbr}).abbr;
     t.updated=today(); t.history.push(logline("Edited attributes"));
-    toast("Saved "+t.id); openDrawer(t); render();
+    if(WRITE_TOKEN_MEM) dbPut(t); toast("Saved "+t.id+(WRITE_TOKEN_MEM?" · syncing":"")); openDrawer(t); render();
   };
-  $("#edVerify").onclick=()=>{t.status="Verified";t.speciesConf=Math.max(t.speciesConf,90);t.updated=today();t.history.push(logline("Field verified"));toast("Verified");openDrawer(t);render();};
+  $("#edVerify").onclick=()=>{t.status="Verified";t.speciesConf=Math.max(t.speciesConf,90);t.updated=today();t.history.push(logline("Field verified"));if(WRITE_TOKEN_MEM) dbPut(t);toast("Verified");openDrawer(t);render();};
   $("#edStatus").onchange=()=>{}; // applied on save
   $("#edMove").onclick=()=>startMove(t.id);
   $("#edDelete").onclick=()=>deleteTree(t.id);
@@ -1554,13 +1563,13 @@ function startMove(id){
 function deleteTree(id){
   const i=TREES.findIndex(t=>t.id===id); if(i<0)return;
   const t=TREES[i]; t.status="Removed"; t.updated=today(); t.history.push(logline("Removed → archived"));
-  ARCHIVE.push(t); TREES.splice(i,1);
+  ARCHIVE.push(t); TREES.splice(i,1); if(WRITE_TOKEN_MEM) dbDelete(id);
   toast(id+" archived (ID retained)"); $("#drawer").classList.remove("open"); render(); refreshInventory();
 }
 function restoreTree(id){
   const i=ARCHIVE.findIndex(t=>t.id===id); if(i<0)return;
   const t=ARCHIVE[i]; t.status="Existing"; t.updated=today(); t.history.push(logline("Restored from archive"));
-  TREES.push(t); ARCHIVE.splice(i,1); toast(id+" restored"); render(); refreshInventory(); selectTree(id);
+  TREES.push(t); ARCHIVE.splice(i,1); if(WRITE_TOKEN_MEM) dbPut(t); toast(id+" restored"); render(); refreshInventory(); selectTree(id);
 }
 function inBoundary(ll){
   // ray casting
@@ -1648,6 +1657,8 @@ $("#btnDetect").onclick=()=>{
 function openAbout(){
   $("#modalBody").innerHTML=`
   <p>This interface is the <b>front-end and data model</b> for a living tree inventory — boundary masking, the editable tree layer, the ID registry, dashboard, coverage heatmap and exports are all real and working. It loads with <b>seeded sample data</b> along Orange's streets so you can explore it immediately.</p>
+  <h4>Live database</h4>
+  <p>On load the app pulls the shared <b>OrangeTreeDatabase</b> (<code>/v1/trees</code>) — the same record <b>CanopyQuest</b> updates with field verifications and new trees — so the index always reflects the latest ground truth. If the database can't be reached (e.g. the page's origin isn't in its <code>ALLOWED_ORIGINS</code>), it falls back to sample data and says so. Editors can enable saving back to the shared record under <b>Layers ▸ Live database ▸ Connect write access</b> by supplying the write token at runtime; it's held in memory only and never stored in the page.</p>
   <p><b>Detect from imagery</b> runs a real, in-browser canopy detector: it reads pixels straight from the Esri satellite tiles, flags vegetation by Excess-Green (2G−R−B), groups pixels into blobs, and drops a tree at each canopy-sized blob. That's genuine detection from the actual imagery — but it's a color heuristic, so it's blind to species, misses shaded and overlapping crowns, and can catch large shrubs. Detections arrive as <b>Unknown · Needs Review</b> on purpose. For a production inventory, the same idea runs server-side with a trained model that's far more accurate:</p>
   <p>Automatic detection from imagery can't run inside a browser page — it needs a server-side vision pipeline. Here's the honest, buildable version:</p>
   <div class="pipe">
@@ -1680,10 +1691,116 @@ document.querySelectorAll(".tab").forEach(tb=>tb.onclick=()=>{
   tb.classList.add("active"); currentTab=tb.dataset.tab; renderRail();
 });
 
+/* ---- 19b. Live database integration (OrangeTreeDatabase / Vercel + Neon) -----
+   Source of truth: https://github.com/jameshward3/OrangeTreeDatabase
+     GET    {base}/v1/trees        -> { trees:[ {...payload, archived, source, updatedAt} ] }
+     PUT    {base}/v1/trees/:id    -> upsert  (Authorization: Bearer <WRITE_TOKEN>)
+     DELETE {base}/v1/trees/:id    -> archive (Authorization: Bearer <WRITE_TOKEN>)
+   CanopyQuest writes field verifications/findings to the same record; this app
+   READS the shared inventory so the index always reflects those contributions.
+   Writes from here are OFF unless an authorized editor supplies a token at
+   runtime (memory only, never hard-coded) — matching the DB's security model. */
+const DB_BASE  = "https://orange-tree-database.vercel.app";
+const DB_TREES = DB_BASE + "/v1/trees";
+let dataSource = "sample";     // 'sample' | 'live' | 'imagery'
+let WRITE_TOKEN_MEM = "";      // set at runtime by an authorized editor; not persisted
+
+function normalizeDbTree(r){
+  const lat=+r.lat, lng=+r.lng;
+  if(!isFinite(lat)||!isFinite(lng)) return null;
+  const canopy=+(r.canopy)||0;
+  let street=r.street, abbr=r.abbr;
+  if(!street){ const ns=nearestStreet([lat,lng]); street=ns.name; abbr=ns.abbr; }
+  if(!abbr){ abbr=(STREETS.find(s=>s.name===street)||{abbr:"ORG"}).abbr; }
+  return {
+    id:String(r.id), street, abbr, ward:r.ward||assignWard(lat,lng),
+    lat:+lat.toFixed(6), lng:+lng.toFixed(6),
+    species:r.species||"Unknown",
+    speciesConf:Math.round(+(r.speciesConf ?? r.species_confidence ?? 0))||0,
+    canopy, canopyArea:r.canopyArea ?? canopyArea(canopy||8),
+    dbh:r.dbh ?? estDBH(canopy||8), height:r.height ?? estHeight(canopy||8, r.species||"Unknown"),
+    maturity:r.maturity||maturity(canopy||8), condition:r.condition||"Unknown",
+    status:r.status||"Needs Review",
+    updated:String(r.updated||r.updatedAt||today()).slice(0,10),
+    notes:r.notes||"", history:Array.isArray(r.history)?r.history:[],
+    source:r.source||"database", dbSynced:true
+  };
+}
+function rebuildIdCounters(){
+  for(const k in idCounters) delete idCounters[k];
+  for(const t of TREES){ const m=/^ORG-([A-Za-z0-9]+)-(\d+)$/.exec(t.id||"");
+    if(m){ const a=m[1], n=+m[2]; if(!idCounters[a]||n>idCounters[a]) idCounters[a]=n; } }
+}
+async function loadFromDatabase(opts){
+  opts=opts||{};
+  setDbStatus("contacting live database…","load");
+  try{
+    const res=await fetch(DB_TREES,{headers:{"Accept":"application/json"},cache:"no-store"});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const data=await res.json();
+    const raw=Array.isArray(data.trees)?data.trees:(Array.isArray(data)?data:[]);
+    const mapped=raw.map(normalizeDbTree).filter(Boolean);
+    TREES=mapped; ARCHIVE.length=0; rebuildIdCounters();
+    dataSource="live"; selected=null;
+    render(); renderRail();
+    setDbStatus(`${TREES.length.toLocaleString()} trees synced`,"live");
+    if(!opts.quiet) toast(`Synced ${TREES.length.toLocaleString()} trees from the live database`);
+    return TREES.length;
+  }catch(err){
+    if(opts.seedIfEmpty && dataSource!=="live"){ seedInventory(); render(); renderRail(); }
+    setDbStatus(cxMsg(err),"error");
+    if(!opts.quiet) toast("Couldn't reach the live database — see Layers ▸ Live database");
+    throw err;
+  }
+}
+function cxMsg(err){
+  const m=String((err&&err.message)||err);
+  if(/Failed to fetch|NetworkError|CORS|TypeError/i.test(m))
+    return "unreachable from this origin — add this app's URL to the DB's ALLOWED_ORIGINS";
+  return m;
+}
+function stripForDb(t){ const c=Object.assign({},t); delete c._m; delete c.dbSynced; return c; }
+async function dbPut(t){
+  if(!WRITE_TOKEN_MEM) return false;
+  try{
+    const res=await fetch(DB_TREES+"/"+encodeURIComponent(t.id),{
+      method:"PUT", cache:"no-store",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+WRITE_TOKEN_MEM},
+      body:JSON.stringify(Object.assign(stripForDb(t),{source:"orangetrees"}))});
+    if(res.status===401){ toast("Write denied — check the token"); return false; }
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    return true;
+  }catch(e){ toast("DB write failed — kept locally"); return false; }
+}
+async function dbDelete(id){
+  if(!WRITE_TOKEN_MEM) return false;
+  try{
+    const res=await fetch(DB_TREES+"/"+encodeURIComponent(id),{
+      method:"DELETE", cache:"no-store", headers:{"Authorization":"Bearer "+WRITE_TOKEN_MEM}});
+    return res.ok || res.status===204;
+  }catch(e){ return false; }
+}
+function setDbStatus(msg,tone){
+  const badge = tone==="live" ? `<b style="color:#8fd6a6">LIVE DATABASE</b>`
+             : tone==="error"? `<b style="color:#e0a23a">DATABASE OFFLINE</b>`
+             : tone==="load" ? `<b style="color:#cbd8cf">SYNCING…</b>`
+             : `<b style="color:#f4c778">SAMPLE DATA</b>`;
+  const rb=$("#sampleribbon");
+  if(rb){ rb.innerHTML = `${badge} — ${msg} · <a href="#" id="ribbonSync">sync</a> · <a href="#" id="ribbonAbout">about</a>`;
+    const s=$("#ribbonSync"); if(s) s.onclick=e=>{e.preventDefault();loadFromDatabase({});};
+    const a=$("#ribbonAbout"); if(a) a.onclick=e=>{e.preventDefault();openAbout();}; }
+  const dbst=$("#dbStatus"); if(dbst) dbst.textContent =
+    (tone==="live"?"● Live · ":tone==="error"?"● Offline · ":"● ")+msg;
+  const cnt=$("#ishCount"); if(cnt) cnt.textContent =
+    (tone==="live"?"live · ":tone==="error"?"offline · ":"")+TREES.length.toLocaleString()+" trees";
+}
+
 /* ---- 20. Boot ---- */
 seedInventory();
 renderRail();
 render();
+// Instantly show sample data, then pull the live shared inventory (CanopyQuest-updated).
+loadFromDatabase({quiet:true, seedIfEmpty:false}).catch(()=>{});
 // Ensure the basemap actually paints once the container has real dimensions.
 function fixSize(){ map.invalidateSize(false); map.fitBounds(CITY_BOUNDS,{padding:[6,6]}); map.setMinZoom(Math.max(13,map.getZoom())); }
 setTimeout(fixSize, 60);
